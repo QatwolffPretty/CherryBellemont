@@ -1,0 +1,175 @@
+/* Base style */
+body {
+  margin: 0;
+  font-family: 'Cormorant', serif;
+  background-color: #0a0a0a;
+  color: #f5f3ef;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Background image */
+.background-text {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  pointer-events: none;
+  background-image: url('Cherry Mono.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  width: 80vw;
+  height: 80vh;
+}
+
+/* Headings and sections */
+h1, h2 {
+  font-family: 'Playfair Display', serif;
+  letter-spacing: 1px;
+  z-index: 1;
+  position: relative;
+}
+
+.section {
+  padding: 80px 20px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+.hero {
+  height: 100vh;
+  background: linear-gradient(rgba(43, 0, 0, 0.6), rgba(10, 0, 0, 0.85)), 
+              url('YOUR-HEEL-IMAGE-HERE.jpg') center/cover no-repeat;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #f5f3ef;
+  text-align: center;
+  position: relative;
+}
+
+.hero h1 {
+  font-size: 64px;
+  letter-spacing: 4px;
+}
+
+.hero p {
+  margin-top: 15px;
+  font-size: 20px;
+}
+
+/* Buttons */
+.btn {
+  margin-top: 30px;
+  padding: 14px 40px;
+  border: 1px solid #c6a66b;
+  color: #c6a66b;
+  text-decoration: none;
+  transition: 0.3s;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+.btn:hover {
+  background-color: #c6a66b;
+  color: #2b0000;
+}
+
+/* Section themes */
+.dark {
+  background-color: #0a0a0a;
+}
+
+.burgundy {
+  background-color: #2b0000;
+}
+
+/* Product section (split layout with motion) */
+.product-view {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-text {
+  flex: 1 1 400px;
+  padding: 40px;
+  text-align: left;
+  max-width: 600px;
+}
+
+.product-text h2 {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.product-text p {
+  margin-bottom: 25px;
+  font-size: 18px;
+}
+
+/* Product image animation */
+.product-image {
+  flex: 1 1 400px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.product-image img {
+  width: 80%;
+  max-width: 450px;
+  transition: transform 0.8s ease, filter 0.8s ease;
+  filter: brightness(90%) contrast(110%);
+}
+
+.product-view:hover img {
+  transform: scale(1.05) rotate(-2deg);
+  filter: brightness(100%) contrast(120%);
+}
+
+/* Footer */
+.footer {
+  padding: 40px;
+  font-size: 14px;
+  opacity: 0.6;
+  text-align: center;
+}
+
+.fa-brands {
+  font-size: 28px;
+  margin-bottom: 10px;
+  color: #c6a66b;
+}
+
+/* Remove underline from icon links */
+a .bi {
+  text-decoration: none;
+}
+
+a {
+  text-decoration: none;
+}
+
+/* Responsive layout */
+@media (max-width: 768px) {
+  .hero h1 {
+    font-size: 42px;
+  }
+  .product-view {
+    flex-direction: column;
+    text-align: center;
+  }
+  .product-text {
+    text-align: center;
+    padding: 20px;
+  }
+  .background-text {
+    font-size: 28vw;
+  }
+}

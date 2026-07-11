@@ -1,3 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Playfair+Display:wght@400;500;600&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base { body { @apply bg-wine-deep font-body text-cream text-lg; } h1,h2,h3 { @apply font-display font-normal tracking-wide; } }
+@layer components { .luxury-link { @apply border border-gold px-6 py-3 uppercase tracking-[.18em] text-sm text-gold transition hover:bg-gold hover:text-wine; } .nav-link { @apply text-sm uppercase tracking-[.16em] text-cream/80 transition hover:text-gold; } .field { @apply w-full border border-cream/25 bg-transparent px-4 py-3 text-cream outline-none focus:border-gold; } }

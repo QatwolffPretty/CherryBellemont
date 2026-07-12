@@ -24,6 +24,8 @@ class StoreCheckoutRequest extends FormRequest
             'state' => ['required', 'string', 'max:120'],
             'postcode' => ['required', 'string', 'max:30'],
             'country' => ['required', 'string', 'max:120'],
+            'delivery_method_id' => ['required', 'integer'],
+            'delivery_instructions' => ['nullable', 'string', 'max:2000'],
             'customer_notes' => ['nullable', 'string', 'max:2000'],
             'payment_method' => ['required', Rule::in(['duitnow'])],
         ];

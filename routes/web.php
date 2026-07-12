@@ -2,11 +2,14 @@
 
 use App\Http\Controllers\Admin\PaymentReceiptController as AdminPaymentReceiptController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\ShippingZoneController;
+use App\Http\Controllers\Admin\DeliveryMethodController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentReceiptController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ShippingQuoteController;
 use App\Http\Controllers\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +23,7 @@ Route::delete('/cart/{product}', [CartController::class, 'destroy'])->name('cart
 Route::delete('/cart', [CartController::class, 'clear'])->name('cart.clear');
 Route::get('/checkout', [CheckoutController::class, 'create'])->name('checkout.create');
 Route::post('/checkout', [CheckoutController::class, 'store'])->middleware('throttle:6,1')->name('checkout.store');
+Route::post('/shipping/quote', ShippingQuoteController::class)->middleware('throttle:20,1')->name('shipping.quote');
 Route::get('/orders/{order:number}/access/{token}', [OrderController::class, 'guestShow'])->name('orders.guest.show');
 Route::get('/orders/{order:number}/access/{token}/confirmation', [OrderController::class, 'guestConfirmation'])->name('orders.guest.confirmation');
 Route::get('/orders/{order:number}/access/{token}/duitnow', [OrderController::class, 'guestDuitNowInstructions'])->name('orders.guest.duitnow');
@@ -41,6 +45,8 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->prefix('admin')->as('admin.')->group(function (): void {
     Route::view('/', 'admin.dashboard')->name('dashboard');
     Route::resource('products', AdminProductController::class)->except('show');
+    Route::resource('shipping-zones', ShippingZoneController::class)->except('show');
+    Route::resource('delivery-methods', DeliveryMethodController::class)->except('show');
     Route::get('payment-receipts', [AdminPaymentReceiptController::class, 'index'])->name('receipts.index');
     Route::patch('payment-receipts/{receipt}/approve', [AdminPaymentReceiptController::class, 'approve'])->name('receipts.approve');
     Route::patch('payment-receipts/{receipt}/reject', [AdminPaymentReceiptController::class, 'reject'])->name('receipts.reject');

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\PaymentReceiptController as AdminPaymentReceiptController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ShippingZoneController;
 use App\Http\Controllers\Admin\DeliveryMethodController;
 use App\Http\Controllers\CartController;
@@ -15,7 +16,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
 Route::get('/collection', [StorefrontController::class, 'collection'])->name('collection');
+Route::redirect('/shop', '/collection');
 Route::get('/collection/{product:slug}', [StorefrontController::class, 'show'])->name('products.show');
+Route::view('/about', 'storefront.about')->name('about');
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart/{product}', [CartController::class, 'store'])->name('cart.store');
 Route::patch('/cart/{product}', [CartController::class, 'update'])->name('cart.update');
@@ -44,12 +47,18 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->as('admin.')->group(function (): void {
     Route::view('/', 'admin.dashboard')->name('dashboard');
+    Route::redirect('dashboard', '/admin');
     Route::resource('products', AdminProductController::class)->except('show');
+    Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
+    Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
+    Route::patch('orders/{order}', [AdminOrderController::class, 'update'])->name('orders.update');
     Route::resource('shipping-zones', ShippingZoneController::class)->except('show');
     Route::resource('delivery-methods', DeliveryMethodController::class)->except('show');
-    Route::get('payment-receipts', [AdminPaymentReceiptController::class, 'index'])->name('receipts.index');
-    Route::patch('payment-receipts/{receipt}/approve', [AdminPaymentReceiptController::class, 'approve'])->name('receipts.approve');
-    Route::patch('payment-receipts/{receipt}/reject', [AdminPaymentReceiptController::class, 'reject'])->name('receipts.reject');
+    Route::get('payment-receipts', [AdminPaymentReceiptController::class, 'index'])->name('payment-receipts.index');
+    Route::get('payment-receipts/{paymentReceipt}', [AdminPaymentReceiptController::class, 'show'])->name('payment-receipts.show');
+    Route::patch('payment-receipts/{paymentReceipt}/approve', [AdminPaymentReceiptController::class, 'approve'])->name('payment-receipts.approve');
+    Route::patch('payment-receipts/{paymentReceipt}/reject', [AdminPaymentReceiptController::class, 'reject'])->name('payment-receipts.reject');
+    Route::get('payment-receipts/{paymentReceipt}/download', [AdminPaymentReceiptController::class, 'download'])->name('payment-receipts.download');
 });
 
 require __DIR__.'/auth.php';

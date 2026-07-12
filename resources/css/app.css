@@ -4,4 +4,11 @@
 @tailwind utilities;
 
 @layer base { body { @apply bg-wine-deep font-body text-cream text-lg; } h1,h2,h3 { @apply font-display font-normal tracking-wide; } }
-@layer components { .luxury-link { @apply border border-gold px-6 py-3 uppercase tracking-[.18em] text-sm text-gold transition hover:bg-gold hover:text-wine; } .nav-link { @apply text-sm uppercase tracking-[.16em] text-cream/80 transition hover:text-gold; } .field { @apply w-full border border-cream/25 bg-transparent px-4 py-3 text-cream outline-none focus:border-gold; } }
+@layer components { .luxury-link { @apply border border-gold px-6 py-3 uppercase tracking-[.18em] text-sm text-gold transition hover:bg-gold hover:text-wine; } .nav-link { @apply text-sm uppercase tracking-[.16em] text-cream/80 transition hover:text-gold; } .nav-icon { @apply relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cream/30 bg-cream text-lg leading-none transition duration-[250ms] ease-out hover:scale-[1.08] hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold; color:#5B1E2D; text-decoration:none; } .nav-icon:hover { color:#C8A96B; text-decoration:none; } .cart-count { @apply absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1 text-xs font-semibold text-wine; } .field { @apply w-full border border-cream/25 bg-transparent px-4 py-3 text-cream outline-none focus:border-gold; } }
+
+.tooltip { position:absolute; z-index:1080; display:block; margin:0; font-size:.75rem; opacity:0; pointer-events:none; transition:opacity .25s ease; }
+.tooltip.show { opacity:1; }
+.tooltip-inner { max-width:12rem; padding:.35rem .6rem; border:1px solid #C8A96B; border-radius:.25rem; background:#5B1E2D; color:#f5f1e8; text-align:center; }
+.tooltip-arrow { position:absolute; width:.8rem; height:.4rem; }
+.bs-tooltip-auto[data-popper-placement^="top"] .tooltip-arrow::before { content:""; position:absolute; border-left:.4rem solid transparent; border-right:.4rem solid transparent; border-top:.4rem solid #5B1E2D; }
+.admin-nav { @apply flex items-center gap-3 rounded px-3 py-2 text-cream/75 transition hover:bg-cream/10 hover:text-gold; }

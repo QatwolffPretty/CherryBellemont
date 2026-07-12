@@ -1,0 +1,1 @@
+<x-layouts.store title="About | Cherry Bellemont"><section class="mx-auto max-w-4xl px-6 py-24 text-center"><p class="uppercase tracking-[.25em] text-gold">Cherry Bellemont</p><h1 class="mt-5 text-5xl">Real power, in silence.</h1><p class="mx-auto mt-8 max-w-2xl text-xl text-cream/75">A house of considered pieces, designed to be remembered.</p></section></x-layouts.store>

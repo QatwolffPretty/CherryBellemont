@@ -1,1 +1,15 @@
-<x-layouts.store title="Atelier | Cherry Bellemont"><section class="mx-auto max-w-6xl px-6 py-16"><p class="uppercase tracking-[.25em] text-gold">Atelier</p><h1 class="mt-3 text-5xl">Admin area</h1><div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">@foreach([['Pending orders','pending'],['Pending payment reviews','payment_review'],['Paid awaiting processing','paid'],['Processing orders','processing'],['Shipped orders','shipped'],['Delivered orders','delivered']] as [$label,$status])<a class="border border-cream/20 p-6 transition hover:border-gold" href="{{ route('admin.orders.index',['order_status'=>$status]) }}"><p class="text-cream/65">{{ $label }}</p><p class="mt-2 text-3xl text-gold">{{ \App\Models\Order::where('order_status',$status)->count() }}</p></a>@endforeach<a class="border border-gold/40 p-6 transition hover:border-gold" href="{{ route('admin.payment-receipts.index',['status'=>'pending']) }}"><p class="text-cream/65">Pending payment reviews</p><p class="mt-2 text-3xl text-gold">{{ \App\Models\PaymentReceipt::where('status','pending')->count() }}</p></a><a class="border border-cream/20 p-6 transition hover:border-gold" href="{{ route('admin.products.index') }}"><p class="text-cream/65">Low stock products</p><p class="mt-2 text-3xl text-gold">{{ \App\Models\Product::where('stock','<=',5)->count() }}</p></a></div></section></x-layouts.store>
+<x-layouts.admin title="Atelier | Cherry Bellemont">
+    <x-admin.section>
+        <x-admin.page-header eyebrow="Atelier" title="Admin area" />
+
+        <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <x-admin.stats-card label="Pending Orders" :value="\App\Models\Order::where('order_status', 'pending')->count()" :href="route('admin.orders.index', ['order_status' => 'pending'])" />
+            <x-admin.stats-card label="Pending Payment Reviews" :value="\App\Models\PaymentReceipt::where('status', 'pending')->count()" :href="route('admin.payment-receipts.index', ['status' => 'pending'])" accent />
+            <x-admin.stats-card label="Paid Awaiting Processing" :value="\App\Models\Order::where('payment_status', 'paid')->where('order_status', 'pending')->count()" :href="route('admin.orders.index', ['payment_status' => 'paid', 'order_status' => 'pending'])" />
+            @foreach([['Processing Orders', 'processing'], ['Shipped Orders', 'shipped'], ['Delivered Orders', 'delivered']] as [$label, $status])
+                <x-admin.stats-card :label="$label" :value="\App\Models\Order::where('order_status', $status)->count()" :href="route('admin.orders.index', ['order_status' => $status])" />
+            @endforeach
+            <x-admin.stats-card label="Low Stock Products" :value="\App\Models\Product::where('stock', '<=', 5)->count()" subtitle="5 or fewer remaining" :href="route('admin.products.index', ['low_stock' => 1])" />
+        </div>
+    </x-admin.section>
+</x-layouts.admin>

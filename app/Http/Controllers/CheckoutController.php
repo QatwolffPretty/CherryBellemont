@@ -8,6 +8,7 @@ use App\Models\DeliveryMethod;
 use App\Models\Product;
 use App\Services\Cart;
 use App\Services\ShippingCalculator;
+use App\Services\OrderNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -20,11 +21,14 @@ class CheckoutController extends Controller
     {
         $lines = $cart->lines();
         if ($lines->isEmpty()) return to_route('cart.index')->withErrors(['cart' => 'Your bag is empty.']);
-        $deliveryMethods=DeliveryMethod::query()->where('is_active',true)->orderBy('sort_order')->get();
+        $deliveryMethods = DeliveryMethod::query()->where('is_active', true)->orderBy('sort_order')->get();
+        if ($deliveryMethods->isEmpty()) {
+            return to_route('cart.index')->withErrors(['cart' => 'Checkout is temporarily unavailable because no delivery methods are active.']);
+        }
         return view('checkout.create', compact('lines','deliveryMethods') + $cart->totals($lines));
     }
 
-    public function store(StoreCheckoutRequest $request, Cart $cart, ShippingCalculator $shippingCalculator): RedirectResponse
+    public function store(StoreCheckoutRequest $request, Cart $cart, ShippingCalculator $shippingCalculator, OrderNotifier $notifier): RedirectResponse
     {
         $contents = $cart->contents();
         if ($contents === []) return to_route('cart.index')->withErrors(['cart' => 'Your bag is empty.']);
@@ -56,6 +60,7 @@ class CheckoutController extends Controller
             foreach ($items as $item) $item['product']->decrement('stock', $item['quantity']);
             return $order;
         });
+        $notifier->send($order, 'order_placed');
         $cart->clear();
         return to_route('orders.guest.duitnow', ['order' => $order->order_number, 'token' => $order->guest_access_token])->with('success', 'Order '.$order->order_number.' has been created.');
     }

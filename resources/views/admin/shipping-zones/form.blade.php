@@ -1,1 +1,21 @@
-<x-layouts.store title="Shipping zone"><section class="mx-auto max-w-2xl px-6 py-16"><h1 class="text-4xl">{{ $zone->exists?'Edit':'Add' }} shipping zone</h1><form class="mt-8 space-y-4" method="POST" action="{{ $zone->exists?route('admin.shipping-zones.update',$zone):route('admin.shipping-zones.store') }}">@csrf @if($zone->exists)@method('PUT')@endif @foreach(['name'=>'Name','state'=>'State','city_or_area'=>'City/area','postcode_from'=>'Postcode from','postcode_to'=>'Postcode to','base_fee'=>'Base fee','sort_order'=>'Sort order'] as $f=>$l)<label class="block">{{ $l }}<input class="field mt-1" name="{{ $f }}" value="{{ old($f,$zone->$f) }}" @if(in_array($f,['base_fee','sort_order'])) type="number" step="0.01" @endif></label>@endforeach<label><input type="checkbox" name="is_active" value="1" @checked(old('is_active',$zone->is_active??true))> Active</label><button class="luxury-link" type="submit">Save</button></form></section></x-layouts.store>
+<x-layouts.admin title="Shipping zone">
+    <x-admin.section width="2xl">
+        <x-admin.page-header :title="$zone->exists ? 'Edit shipping zone' : 'Add shipping zone'" />
+
+        <x-admin.card class="mt-8">
+            <form class="space-y-4" method="POST" action="{{ $zone->exists ? route('admin.shipping-zones.update', $zone) : route('admin.shipping-zones.store') }}">
+                @csrf
+                @if($zone->exists)@method('PUT')@endif
+                <x-admin.form-input name="name" label="Name" :value="$zone->name" />
+                <x-admin.form-input name="state" label="State" :value="$zone->state" />
+                <x-admin.form-input name="city_or_area" label="City/area" :value="$zone->city_or_area" />
+                <x-admin.form-input name="postcode_from" label="Postcode from" :value="$zone->postcode_from" />
+                <x-admin.form-input name="postcode_to" label="Postcode to" :value="$zone->postcode_to" />
+                <x-admin.form-input name="base_fee" label="Base fee" type="number" step="0.01" :value="$zone->base_fee" />
+                <x-admin.form-input name="sort_order" label="Sort order" type="number" step="0.01" :value="$zone->sort_order" />
+                <x-admin.checkbox name="is_active" label="Active" :checked="old('is_active', $zone->is_active ?? true)" />
+                <x-admin.button type="submit">Save</x-admin.button>
+            </form>
+        </x-admin.card>
+    </x-admin.section>
+</x-layouts.admin>

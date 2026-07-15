@@ -54,6 +54,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->as('admin.')->group(funct
     Route::patch('orders/{order}', [AdminOrderController::class, 'update'])->name('orders.update');
     Route::resource('shipping-zones', ShippingZoneController::class)->except('show');
     Route::resource('delivery-methods', DeliveryMethodController::class)->except('show');
+    Route::view('customers', 'admin.customers')->name('customers.index');
+    Route::view('reports', 'admin.reports')->name('reports.index');
     Route::get('payment-receipts', [AdminPaymentReceiptController::class, 'index'])->name('payment-receipts.index');
     Route::get('payment-receipts/{paymentReceipt}', [AdminPaymentReceiptController::class, 'show'])->name('payment-receipts.show');
     Route::patch('payment-receipts/{paymentReceipt}/approve', [AdminPaymentReceiptController::class, 'approve'])->name('payment-receipts.approve');

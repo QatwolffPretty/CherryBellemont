@@ -11,7 +11,16 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
-    public function index(): View { return view('admin.products.index', ['products' => Product::latest()->paginate(20)]); }
+    public function index(Request $request): View
+    {
+        $products = Product::query()->latest();
+
+        if ($request->boolean('low_stock')) {
+            $products->where('stock', '<=', 5);
+        }
+
+        return view('admin.products.index', ['products' => $products->paginate(20)->withQueryString()]);
+    }
     public function create(): View { return view('admin.products.form', ['product' => new Product]); }
     public function store(Request $request): RedirectResponse
     {

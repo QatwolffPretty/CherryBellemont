@@ -1,1 +1,51 @@
-<x-layouts.store title="Orders | Atelier"><section class="mx-auto max-w-7xl px-6 py-16"><h1 class="text-4xl">Orders</h1><form class="mt-6 grid gap-3 md:grid-cols-5" method="GET"><input class="field" name="search" value="{{ request('search') }}" placeholder="Order, name, email, phone"><select class="field" name="payment_status"><option value="">All payments</option>@foreach(['pending','paid'] as $s)<option value="{{ $s }}" @selected(request('payment_status')===$s)>{{ $s }}</option>@endforeach</select><select class="field" name="order_status"><option value="">All statuses</option>@foreach(['pending','payment_review','paid','processing','packed','shipped','delivered','cancelled'] as $s)<option value="{{ $s }}" @selected(request('order_status')===$s)>{{ $s }}</option>@endforeach</select><input class="field" name="delivery_method_id" value="{{ request('delivery_method_id') }}" placeholder="Delivery method ID"><button class="luxury-link">Filter</button></form><div class="mt-8 overflow-x-auto"><table class="w-full text-left"><thead class="text-gold"><tr><th>Order</th><th>Customer</th><th>Date</th><th>Total</th><th>Payment</th><th>Order</th><th>Delivery</th><th>Courier / tracking</th><th></th></tr></thead><tbody>@forelse($orders as $order)<tr class="border-t border-cream/15"><td class="p-3">{{ $order->order_number }}</td><td>{{ $order->customer_name }}<br><small>{{ $order->customer_email }} · {{ $order->customer_phone }}</small></td><td>{{ $order->created_at->format('d M Y') }}</td><td>RM {{ number_format($order->total,2) }}</td><td class="capitalize text-gold">{{ $order->payment_status }}</td><td class="capitalize">{{ $order->order_status }}</td><td>{{ $order->shipping_method_name }}</td><td>{{ $order->courier_name ?: '—' }}<br><small>{{ $order->tracking_number }}</small></td><td><a class="luxury-link" href="{{ route('admin.orders.show',$order) }}">View</a></td></tr>@empty<tr><td class="p-8 text-center text-cream/65" colspan="9">No orders found.</td></tr>@endforelse</tbody></table></div>{{ $orders->links() }}</section></x-layouts.store>
+<x-layouts.admin title="Orders | Atelier">
+    <x-admin.section width="7xl">
+        <x-admin.page-header eyebrow="Order management" title="Orders" />
+
+        <form class="mt-6 grid gap-3 md:grid-cols-5" method="GET">
+            <x-admin.form-input name="search" :value="request('search')" placeholder="Order, name, email, phone" aria-label="Search orders" class="mt-0" />
+            <x-admin.select name="payment_status" aria-label="Filter payment status" class="mt-0">
+                <option value="">All payments</option>
+                @foreach(['pending', 'paid', 'failed', 'refunded'] as $status)
+                    <option value="{{ $status }}" @selected(request('payment_status') === $status)>{{ ucfirst($status) }}</option>
+                @endforeach
+            </x-admin.select>
+            <x-admin.select name="order_status" aria-label="Filter fulfilment status" class="mt-0">
+                <option value="">All fulfilment states</option>
+                @foreach(['pending', 'payment_review', 'processing', 'packed', 'shipped', 'delivered', 'cancelled'] as $status)
+                    <option value="{{ $status }}" @selected(request('order_status') === $status)>{{ str($status)->replace('_', ' ')->title() }}</option>
+                @endforeach
+            </x-admin.select>
+            <x-admin.select name="delivery_method_id" aria-label="Filter delivery method" class="mt-0">
+                <option value="">All delivery methods</option>
+                @foreach($deliveryMethods as $method)
+                    <option value="{{ $method->id }}" @selected((string) request('delivery_method_id') === (string) $method->id)>{{ $method->name }}</option>
+                @endforeach
+            </x-admin.select>
+            <x-admin.button type="submit">Filter</x-admin.button>
+        </form>
+
+        <x-admin.table class="mt-8">
+            <x-slot:head>
+                <tr><th>Order</th><th>Customer</th><th>Date</th><th>Total</th><th>Payment</th><th>Fulfilment</th><th>Delivery</th><th>Courier / tracking</th><th></th></tr>
+            </x-slot:head>
+            @forelse($orders as $order)
+                <tr>
+                    <td>{{ $order->order_number ?? $order->number }}</td>
+                    <td>{{ $order->customer_name }}<br><small>{{ $order->customer_email }} &middot; {{ $order->customer_phone }}</small></td>
+                    <td>{{ $order->created_at?->format('d M Y') }}</td>
+                    <td>RM {{ number_format($order->total, 2) }}</td>
+                    <td><span class="block pb-1 text-xs text-cream/60">Payment</span><x-admin.badge :status="$order->payment_status" /></td>
+                    <td><span class="block pb-1 text-xs text-cream/60">Fulfilment</span><x-admin.badge :status="$order->order_status" /></td>
+                    <td>{{ $order->shipping_method_name ?? '—' }}</td>
+                    <td>{{ $order->courier_name ?: '—' }}<br><small>{{ $order->tracking_number }}</small></td>
+                    <td><x-admin.button variant="outline" :href="route('admin.orders.show', $order)">View</x-admin.button></td>
+                </tr>
+            @empty
+                <tr><td colspan="9"><x-admin.empty-state title="No orders found." description="Orders matching the current filters will appear here." icon="bi-handbag-fill" /></td></tr>
+            @endforelse
+        </x-admin.table>
+
+        <div class="mt-8">{{ $orders->links() }}</div>
+    </x-admin.section>
+</x-layouts.admin>

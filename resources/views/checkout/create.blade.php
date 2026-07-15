@@ -4,12 +4,21 @@
             <p class="uppercase tracking-[.25em] text-gold">Guest checkout</p>
             <h1 class="mt-3 text-5xl">Delivery details</h1>
 
+            @if(session('success'))
+                <p class="mt-6 border border-gold/50 p-4 text-gold">{{ session('success') }}</p>
+            @endif
             @error('cart')
                 <p class="mt-6 border border-gold/50 p-4 text-gold">{{ $message }}</p>
             @enderror
             @error('stripe')
                 <p class="mt-6 border border-gold/50 p-4 text-gold">{{ $message }}</p>
             @enderror
+            @error('coupon')
+                <p class="mt-6 border border-gold/50 p-4 text-gold">{{ $message }}</p>
+            @enderror
+            @if($couponMessage)
+                <p class="mt-6 border border-gold/50 p-4 text-gold">{{ $couponMessage }}</p>
+            @endif
 
             @if($pendingStripeOrder)
                 <div class="mt-6 border border-gold/50 p-5">
@@ -20,6 +29,15 @@
                     </form>
                 </div>
             @endif
+
+            <div class="mt-8 border border-gold/35 p-5">
+                <p class="uppercase tracking-[.18em] text-gold">Coupon</p>
+                @if($couponSummary['coupon'])
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3"><span>{{ $couponSummary['coupon_code'] }} applied</span><form method="POST" action="{{ route('cart.coupon.remove') }}">@csrf @method('DELETE')<button class="nav-link" type="submit">Remove coupon</button></form></div>
+                @else
+                    <form class="mt-3 flex flex-wrap gap-3" method="POST" action="{{ route('cart.coupon.apply') }}">@csrf <input class="field min-w-0 flex-1" name="coupon_code" value="{{ old('coupon_code') }}" placeholder="Enter coupon code" aria-label="Coupon code"><button class="luxury-link" type="submit">Apply</button></form>
+                @endif
+            </div>
 
             <form id="checkout-form" class="mt-10 space-y-5" method="POST" action="{{ route('checkout.store') }}">
                 @csrf
@@ -87,8 +105,10 @@
                 </div>
             @endforeach
             <p class="mt-8 flex justify-between border-t border-cream/15 pt-5"><span>Subtotal</span><span>RM {{ number_format($subtotal / 100, 2) }}</span></p>
+            <p class="mt-3 flex justify-between"><span>Discount</span><span id="discount-amount" class="text-gold">−RM {{ number_format($couponSummary['discount_cents'] / 100, 2) }}</span></p>
             <p class="mt-3 flex justify-between"><span>Shipping</span><span id="shipping-fee">&mdash;</span></p>
-            <p class="mt-4 flex justify-between text-xl text-gold"><span>Total</span><span id="grand-total">RM {{ number_format($total / 100, 2) }}</span></p>
+            <p id="free-shipping-row" class="mt-3 hidden justify-between"><span>Free-shipping discount</span><span id="free-shipping-discount" class="text-gold">−RM 0.00</span></p>
+            <p class="mt-4 flex justify-between text-xl text-gold"><span>Total</span><span id="grand-total">RM {{ number_format(($subtotal - $couponSummary['discount_cents']) / 100, 2) }}</span></p>
         </aside>
     </section>
 
@@ -98,6 +118,9 @@
         const addressFields = document.getElementById('address-fields');
         const message = document.getElementById('shipping-message');
         const fee = document.getElementById('shipping-fee');
+        const discount = document.getElementById('discount-amount');
+        const freeShippingRow = document.getElementById('free-shipping-row');
+        const freeShippingDiscount = document.getElementById('free-shipping-discount');
         const total = document.getElementById('grand-total');
         const button = document.getElementById('place-order');
         const subtotal = {{ $subtotal / 100 }};
@@ -140,6 +163,7 @@
                         state: form.state.value,
                         city: form.city.value,
                         postcode: form.postcode.value,
+                        customer_email: form.customer_email.value,
                         delivery_method_id: method.value,
                     }),
                 });
@@ -150,8 +174,12 @@
                 }
 
                 message.textContent = data.display_label + (data.pickup_location ? ' · ' + data.pickup_location : '');
-                fee.textContent = 'RM ' + Number(data.shipping_fee).toFixed(2);
-                total.textContent = 'RM ' + (subtotal + Number(data.shipping_fee)).toFixed(2);
+                fee.textContent = 'RM ' + Number(data.original_shipping_fee).toFixed(2);
+                discount.textContent = '−RM ' + Number(data.discount_amount).toFixed(2);
+                freeShippingRow.classList.toggle('hidden', Number(data.free_shipping_discount) <= 0);
+                freeShippingRow.classList.toggle('flex', Number(data.free_shipping_discount) > 0);
+                freeShippingDiscount.textContent = '−RM ' + Number(data.free_shipping_discount).toFixed(2);
+                total.textContent = 'RM ' + Number(data.total).toFixed(2);
                 button.disabled = false;
             } catch (error) {
                 message.textContent = error.message;
@@ -159,7 +187,7 @@
             }
         }
 
-        ['state', 'city', 'postcode'].forEach((name) => form[name].addEventListener('input', quote));
+        ['customer_email', 'state', 'city', 'postcode'].forEach((name) => form[name].addEventListener('input', quote));
         method.addEventListener('change', quote);
         quote();
     </script>

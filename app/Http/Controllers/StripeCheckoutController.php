@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Services\Cart;
 use App\Services\StripeCheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,21 +13,21 @@ use Throwable;
 
 class StripeCheckoutController extends Controller
 {
-    public function start(Order $order, string $token, StripeCheckoutService $stripe): RedirectResponse
+    public function start(Order $order, string $token, StripeCheckoutService $stripe, Cart $cart): RedirectResponse
     {
         $this->authorizeGuest($order, $token);
 
-        return $this->redirectToCheckout($order, $token, $stripe);
+        return $this->redirectToCheckout($order, $token, $stripe, $cart);
     }
 
-    public function retry(Order $order, string $token, StripeCheckoutService $stripe): RedirectResponse
+    public function retry(Order $order, string $token, StripeCheckoutService $stripe, Cart $cart): RedirectResponse
     {
         $this->authorizeGuest($order, $token);
         abort_unless($order->payment_method === 'stripe', 404);
         abort_if($order->payment_status === 'paid', 422, 'This order has already been paid.');
         abort_if($order->order_status === 'cancelled', 422, 'Cancelled orders cannot be paid again.');
 
-        return $this->redirectToCheckout($order, $token, $stripe, true);
+        return $this->redirectToCheckout($order, $token, $stripe, $cart, true);
     }
 
     public function success(Request $request, StripeCheckoutService $stripe): View
@@ -64,11 +65,12 @@ class StripeCheckoutController extends Controller
         return view('orders.stripe-cancel', compact('order', 'token'));
     }
 
-    private function redirectToCheckout(Order $order, string $token, StripeCheckoutService $stripe, bool $retry = false): RedirectResponse
+    private function redirectToCheckout(Order $order, string $token, StripeCheckoutService $stripe, Cart $cart, bool $retry = false): RedirectResponse
     {
         try {
             $session = $stripe->beginCheckout($order, $retry);
             session()->forget('stripe_pending_order');
+            $cart->clear();
 
             return redirect()->away($session->url);
         } catch (Throwable $exception) {

@@ -54,8 +54,19 @@ class StripeCheckoutService
     public function checkoutPayload(Order $order): array
     {
         $order->loadMissing('items');
+        $discountSen = $this->amountInSen($order->discount_amount ?? 0);
+        $shippingSen = $this->amountInSen($order->shipping_fee);
+        $freeShippingSen = $this->amountInSen($order->free_shipping_discount ?? 0);
+        $netShippingSen = max(0, $shippingSen - $freeShippingSen);
 
-        $lineItems = $order->items->map(function ($item): array {
+        $lineItems = $discountSen > 0 ? [[
+            'price_data' => [
+                'currency' => $this->currency(),
+                'unit_amount' => max(0, $this->amountInSen($order->subtotal) - $discountSen),
+                'product_data' => ['name' => 'Collection items'.($order->coupon_code ? ' - '.$order->coupon_code.' applied' : '')],
+            ],
+            'quantity' => 1,
+        ]] : $order->items->map(function ($item): array {
             return [
                 'price_data' => [
                     'currency' => $this->currency(),
@@ -66,16 +77,20 @@ class StripeCheckoutService
             ];
         })->values()->all();
 
-        $shippingSen = $this->amountInSen($order->shipping_fee);
-        if ($shippingSen > 0) {
+        if ($netShippingSen > 0) {
             $lineItems[] = [
                 'price_data' => [
                     'currency' => $this->currency(),
-                    'unit_amount' => $shippingSen,
+                    'unit_amount' => $netShippingSen,
                     'product_data' => ['name' => 'Shipping — '.($order->shipping_method_name ?? 'Delivery')],
                 ],
                 'quantity' => 1,
             ];
+        }
+
+        $payloadTotalSen = collect($lineItems)->sum(fn (array $line): int => $line['price_data']['unit_amount'] * $line['quantity']);
+        if ($payloadTotalSen !== $this->amountInSen($order->total)) {
+            throw new RuntimeException('Stripe Checkout line items did not match the order total.');
         }
 
         return [
@@ -88,6 +103,13 @@ class StripeCheckoutService
                 'order_id' => (string) $order->id,
                 'payment_provider' => 'stripe',
             ],
+            'payment_intent_data' => [
+                'metadata' => [
+                    'order_number' => $order->order_number,
+                    'order_id' => (string) $order->id,
+                    'payment_provider' => 'stripe',
+                ],
+            ],
             'success_url' => $this->successUrl(),
             'cancel_url' => route('stripe.cancel', [
                 'order' => $order->order_number,
@@ -99,6 +121,16 @@ class StripeCheckoutService
     public function retrieveCheckoutSession(string $sessionId): object
     {
         return $this->client()->checkout->sessions->retrieve($sessionId, []);
+    }
+
+    public function findCheckoutSessionForPaymentIntent(string $paymentIntentId): ?object
+    {
+        $sessions = $this->client()->checkout->sessions->all([
+            'payment_intent' => $paymentIntentId,
+            'limit' => 1,
+        ]);
+
+        return $sessions->data[0] ?? null;
     }
 
     public function constructWebhookEvent(string $payload, ?string $signature): Event

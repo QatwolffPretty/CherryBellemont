@@ -10,6 +10,7 @@ use App\Models\StripeWebhookEvent;
 use App\Models\User;
 use App\Notifications\OrderCustomerNotification;
 use App\Services\StripeCheckoutService;
+use App\Services\StripeWebhookService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -148,6 +149,52 @@ class StripeCheckoutTest extends TestCase
         Notification::assertSentOnDemand(OrderCustomerNotification::class, fn (OrderCustomerNotification $notification) => $notification->event === 'payment_approved');
     }
 
+    public function test_payment_intent_succeeded_marks_an_order_paid_using_its_saved_intent_id(): void
+    {
+        Notification::fake();
+        $order = $this->stripeOrder(['stripe_payment_intent_id' => 'pi_test_fallback']);
+
+        $this->postStripeEvent($this->paymentIntentEvent($order, 'evt_pi_fallback', 'pi_test_fallback', 10000, 'myr'))->assertOk();
+
+        $this->assertSame('paid', $order->fresh()->payment_status);
+        $this->assertSame('paid', $order->fresh()->stripe_payment_status);
+        $this->assertSame('pi_test_fallback', $order->fresh()->stripe_payment_intent_id);
+        Notification::assertSentOnDemand(OrderCustomerNotification::class, 1);
+    }
+
+    public function test_payment_intent_succeeded_can_resolve_the_related_checkout_session_as_a_fallback(): void
+    {
+        Notification::fake();
+        $order = $this->stripeOrder(['stripe_checkout_session_id' => 'cs_test_pi_session']);
+        $stripe = Mockery::mock(StripeCheckoutService::class);
+        $stripe->shouldReceive('findCheckoutSessionForPaymentIntent')->once()->with('pi_test_session_fallback')->andReturn((object) [
+            'id' => 'cs_test_pi_session',
+            'payment_status' => 'paid',
+            'amount_total' => 10000,
+            'currency' => 'myr',
+            'payment_intent' => 'pi_test_session_fallback',
+            'metadata' => (object) [],
+        ]);
+        $stripe->shouldReceive('amountInSen')->once()->with('100.00')->andReturn(10000);
+        $stripe->shouldReceive('currency')->once()->andReturn('myr');
+
+        $event = (object) [
+            'id' => 'evt_pi_session_fallback',
+            'type' => 'payment_intent.succeeded',
+            'data' => (object) ['object' => (object) [
+                'id' => 'pi_test_session_fallback',
+                'amount_received' => 10000,
+                'currency' => 'myr',
+                'metadata' => (object) [],
+            ]],
+        ];
+
+        app(StripeWebhookService::class, ['stripe' => $stripe])->process($event, ['id' => $event->id, 'type' => $event->type]);
+
+        $this->assertSame('paid', $order->fresh()->payment_status);
+        $this->assertSame('pi_test_session_fallback', $order->fresh()->stripe_payment_intent_id);
+    }
+
     public function test_invalid_stripe_webhook_signature_is_rejected(): void
     {
         $this->call('POST', route('stripe.webhook'), [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_STRIPE_SIGNATURE' => 't=1,v1=invalid'], '{}')
@@ -171,20 +218,44 @@ class StripeCheckoutTest extends TestCase
     {
         $order = $this->stripeOrder(['stripe_checkout_session_id' => 'cs_test_amount']);
 
-        $this->postStripeEvent($this->sessionEvent($order, 'evt_amount_mismatch', 9999, 'myr'))->assertOk();
+        $this->postStripeEvent($this->sessionEvent($order, 'evt_amount_mismatch', 9999, 'myr'))->assertServerError();
 
         $this->assertSame('pending', $order->fresh()->payment_status);
         $this->assertSame('Stripe payment amount verification failed.', $order->fresh()->stripe_failure_reason);
+        $this->assertDatabaseHas('stripe_webhook_events', ['stripe_event_id' => 'evt_amount_mismatch', 'processed_at' => null]);
     }
 
     public function test_currency_mismatch_does_not_mark_order_paid(): void
     {
         $order = $this->stripeOrder(['stripe_checkout_session_id' => 'cs_test_currency']);
 
-        $this->postStripeEvent($this->sessionEvent($order, 'evt_currency_mismatch', 10000, 'usd'))->assertOk();
+        $this->postStripeEvent($this->sessionEvent($order, 'evt_currency_mismatch', 10000, 'usd'))->assertServerError();
 
         $this->assertSame('pending', $order->fresh()->payment_status);
         $this->assertSame('Stripe payment currency verification failed.', $order->fresh()->stripe_failure_reason);
+        $this->assertDatabaseHas('stripe_webhook_events', ['stripe_event_id' => 'evt_currency_mismatch', 'processed_at' => null]);
+    }
+
+    public function test_missing_stripe_order_is_logged_as_a_retryable_webhook_failure(): void
+    {
+        $this->postStripeEvent([
+            'id' => 'evt_missing_order',
+            'type' => 'checkout.session.completed',
+            'data' => ['object' => [
+                'id' => 'cs_missing_order',
+                'payment_status' => 'paid',
+                'amount_total' => 10000,
+                'currency' => 'myr',
+                'payment_intent' => 'pi_missing_order',
+                'metadata' => [],
+                'client_reference_id' => 'CB-MISSING',
+            ]],
+        ])->assertServerError();
+
+        $this->assertDatabaseHas('stripe_webhook_events', [
+            'stripe_event_id' => 'evt_missing_order',
+            'processed_at' => null,
+        ]);
     }
 
     public function test_retry_creates_a_new_session_without_a_duplicate_order_or_stock_deduction(): void
@@ -262,6 +333,21 @@ class StripeCheckoutTest extends TestCase
                 'currency' => $currency,
                 'payment_status' => 'paid',
                 'payment_intent' => 'pi_test_paid',
+                'metadata' => ['order_id' => (string) $order->id, 'order_number' => $order->order_number, 'payment_provider' => 'stripe'],
+            ]],
+        ];
+    }
+
+    private function paymentIntentEvent(Order $order, string $eventId, string $paymentIntentId, int $amount, string $currency): array
+    {
+        return [
+            'id' => $eventId,
+            'type' => 'payment_intent.succeeded',
+            'data' => ['object' => [
+                'id' => $paymentIntentId,
+                'amount_received' => $amount,
+                'currency' => $currency,
+                'status' => 'succeeded',
                 'metadata' => ['order_id' => (string) $order->id, 'order_number' => $order->order_number, 'payment_provider' => 'stripe'],
             ]],
         ];

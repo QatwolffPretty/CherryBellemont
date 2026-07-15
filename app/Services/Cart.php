@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 class Cart
 {
     private const SESSION_KEY = 'cart';
+    private const COUPON_SESSION_KEY = 'coupon_code';
 
     public function contents(): array
     {
@@ -32,7 +33,24 @@ class Cart
 
     public function clear(): void
     {
-        session()->forget(self::SESSION_KEY);
+        session()->forget([self::SESSION_KEY, self::COUPON_SESSION_KEY]);
+    }
+
+    public function couponCode(): ?string
+    {
+        $code = trim((string) session(self::COUPON_SESSION_KEY, ''));
+
+        return $code === '' ? null : strtoupper($code);
+    }
+
+    public function applyCoupon(string $code): void
+    {
+        session([self::COUPON_SESSION_KEY => strtoupper(trim($code))]);
+    }
+
+    public function removeCoupon(): void
+    {
+        session()->forget(self::COUPON_SESSION_KEY);
     }
 
     public function count(): int

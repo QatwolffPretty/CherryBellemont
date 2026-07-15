@@ -21,10 +21,12 @@
             <nav class="mt-10 grid gap-2 text-sm" aria-label="Admin navigation">
                 <a class="admin-nav {{ request()->routeIs('admin.dashboard') ? 'admin-nav-active' : '' }}" href="{{ route('admin.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
                 <a class="admin-nav {{ request()->routeIs('admin.products.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.products.index') }}"><i class="bi bi-box-seam"></i> Products</a>
+                <a class="admin-nav {{ request()->routeIs('admin.reviews.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.reviews.index') }}"><i class="bi bi-chat-square-quote"></i> Reviews</a>
                 <a class="admin-nav {{ request()->routeIs('admin.orders.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.orders.index') }}"><i class="bi bi-handbag-fill"></i> Orders</a>
                 <a class="admin-nav {{ request()->routeIs('admin.payment-receipts.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.payment-receipts.index') }}"><i class="bi bi-credit-card"></i> Payment Verification @if($pendingReceiptCount)<span class="ml-auto rounded-full bg-gold px-2 py-0.5 text-xs text-wine">{{ $pendingReceiptCount }}</span>@endif</a>
                 <a class="admin-nav {{ request()->routeIs('admin.shipping-zones.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.shipping-zones.index') }}"><i class="bi bi-geo-alt"></i> Shipping Zones</a>
                 <a class="admin-nav {{ request()->routeIs('admin.delivery-methods.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.delivery-methods.index') }}"><i class="bi bi-truck"></i> Delivery Methods</a>
+                <a class="admin-nav {{ request()->routeIs('admin.coupons.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.coupons.index') }}"><i class="bi bi-ticket-perforated"></i> Coupons</a>
                 <a class="admin-nav {{ request()->routeIs('admin.customers.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.customers.index') }}"><i class="bi bi-people"></i> Customers</a>
                 <a class="admin-nav {{ request()->routeIs('admin.reports.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.reports.index') }}"><i class="bi bi-graph-up"></i> Reports</a>
                 <a class="admin-nav {{ request()->routeIs('profile.*') ? 'admin-nav-active' : '' }}" href="{{ route('profile.edit') }}"><i class="bi bi-gear"></i> Settings</a>

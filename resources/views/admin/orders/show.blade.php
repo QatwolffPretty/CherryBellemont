@@ -32,7 +32,11 @@
                         </div>
                     @endforeach
                     <p class="mt-5">Subtotal <span class="float-right">RM {{ number_format($order->subtotal, 2) }}</span></p>
+                    <p>Coupon <span class="float-right">{{ $order->coupon_code ?: '—' }}</span></p>
+                    <p>Discount <span class="float-right text-gold">−RM {{ number_format($order->discount_amount ?? 0, 2) }}</span></p>
+                    <p>Original shipping <span class="float-right">RM {{ number_format($order->original_shipping_fee ?? $order->shipping_fee, 2) }}</span></p>
                     <p>Shipping fee <span class="float-right">RM {{ number_format($order->shipping_fee, 2) }}</span></p>
+                    <p>Free-shipping discount <span class="float-right text-gold">−RM {{ number_format($order->free_shipping_discount ?? 0, 2) }}</span></p>
                     <p class="mt-3 text-xl text-gold">Total <span class="float-right">RM {{ number_format($order->total, 2) }}</span></p>
                 </x-admin.card>
             </div>

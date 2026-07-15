@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\PaymentReceiptController as AdminPaymentReceiptController;
+use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\ShippingZoneController;
@@ -14,14 +15,22 @@ use App\Http\Controllers\ShippingQuoteController;
 use App\Http\Controllers\StripeCheckoutController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\StorefrontController;
+use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [StorefrontController::class, 'home'])->name('home');
 Route::get('/collection', [StorefrontController::class, 'collection'])->name('collection');
 Route::redirect('/shop', '/collection');
 Route::get('/collection/{product:slug}', [StorefrontController::class, 'show'])->name('products.show');
+Route::get('/collection/{product:slug}/review', [ReviewController::class, 'create'])->name('reviews.create');
+Route::post('/collection/{product:slug}/review', [ReviewController::class, 'store'])->middleware('throttle:6,1')->name('reviews.store');
+Route::patch('/collection/{product:slug}/reviews/{review}', [ReviewController::class, 'update'])->middleware('throttle:6,1')->name('reviews.update');
+Route::post('/reviews/{review}/helpful', [ReviewController::class, 'helpful'])->middleware('throttle:20,1')->name('reviews.helpful');
 Route::view('/about', 'storefront.about')->name('about');
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+Route::post('/cart/coupon', [CartController::class, 'applyCoupon'])->middleware('throttle:10,1')->name('cart.coupon.apply');
+Route::delete('/cart/coupon', [CartController::class, 'removeCoupon'])->name('cart.coupon.remove');
 Route::post('/cart/{product}', [CartController::class, 'store'])->name('cart.store');
 Route::patch('/cart/{product}', [CartController::class, 'update'])->name('cart.update');
 Route::delete('/cart/{product}', [CartController::class, 'destroy'])->name('cart.destroy');
@@ -63,6 +72,15 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->as('admin.')->group(funct
     Route::patch('orders/{order}', [AdminOrderController::class, 'update'])->name('orders.update');
     Route::resource('shipping-zones', ShippingZoneController::class)->except('show');
     Route::resource('delivery-methods', DeliveryMethodController::class)->except('show');
+    Route::resource('coupons', AdminCouponController::class)->except('show');
+    Route::patch('reviews/bulk', [AdminReviewController::class, 'bulk'])->name('reviews.bulk');
+    Route::get('reviews', [AdminReviewController::class, 'index'])->name('reviews.index');
+    Route::get('reviews/{review}', [AdminReviewController::class, 'show'])->name('reviews.show');
+    Route::patch('reviews/{review}/approve', [AdminReviewController::class, 'approve'])->name('reviews.approve');
+    Route::patch('reviews/{review}/reject', [AdminReviewController::class, 'reject'])->name('reviews.reject');
+    Route::patch('reviews/{review}/hide', [AdminReviewController::class, 'hide'])->name('reviews.hide');
+    Route::patch('reviews/{review}/reply', [AdminReviewController::class, 'reply'])->name('reviews.reply');
+    Route::delete('reviews/{review}', [AdminReviewController::class, 'destroy'])->name('reviews.destroy');
     Route::view('customers', 'admin.customers')->name('customers.index');
     Route::view('reports', 'admin.reports')->name('reports.index');
     Route::get('payment-receipts', [AdminPaymentReceiptController::class, 'index'])->name('payment-receipts.index');

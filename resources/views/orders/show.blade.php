@@ -22,6 +22,7 @@
     <section class="mx-auto max-w-6xl px-6 py-16">
         <p class="uppercase tracking-[.25em] text-gold">Order</p>
         <h1 class="mt-3 text-4xl">{{ $order->order_number ?? $order->number }}</h1>
+        @if(session('success'))<p class="mt-6 border border-gold/50 p-4 text-gold">{{ session('success') }}</p>@endif
 
         <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem]">
             <div class="space-y-6">
@@ -37,7 +38,18 @@
                             @if($item->product && $item->product->image_path)
                                 <img class="h-20 w-16 object-cover" src="{{ asset('storage/'.$item->product->image_path) }}" alt="{{ $item->product_name ?? $item->name }}">
                             @endif
-                            <div class="flex-1"><p>{{ $item->product_name ?? $item->name }} &times; {{ $item->quantity }}</p><p class="text-gold">RM {{ number_format($item->line_total ?? $item->total, 2) }}</p></div>
+                            <div class="flex-1">
+                                <p>{{ $item->product_name ?? $item->name }} &times; {{ $item->quantity }}</p>
+                                <p class="text-gold">RM {{ number_format($item->line_total ?? $item->total, 2) }}</p>
+                                @if($order->payment_status === 'paid' && $order->order_status === 'delivered' && $item->product)
+                                    <a class="luxury-link mt-4 inline-block" href="{{ route('products.show', ['product' => $item->product, 'order_number' => $order->order_number, 'guest_access_token' => $token ?? null, 'customer_email' => $order->customer_email]) }}">
+                                        {{ $item->review ? 'Edit review' : 'Review this product' }}
+                                    </a>
+                                    @if($item->review)
+                                        <p class="mt-2 text-sm text-cream/60">Your review is {{ $item->review->status }}.</p>
+                                    @endif
+                                @endif
+                            </div>
                         </div>
                     @endforeach
                 </section>
@@ -83,7 +95,10 @@
                     <p class="mt-5"><span class="text-cream/60">Card Payment</span><br><span class="capitalize text-gold">{{ $order->stripe_payment_status ?: 'awaiting payment' }}</span></p>
                 @endif
                 <p class="mt-5">Subtotal <span class="float-right">RM {{ number_format($order->subtotal, 2) }}</span></p>
+                @if($order->coupon_code)<p>Coupon <span class="float-right text-gold">{{ $order->coupon_code }}</span></p>@endif
+                <p>Discount <span class="float-right text-gold">−RM {{ number_format($order->discount_amount ?? 0, 2) }}</span></p>
                 <p>Shipping <span class="float-right">RM {{ number_format($order->shipping_fee, 2) }}</span></p>
+                @if(($order->free_shipping_discount ?? 0) > 0)<p>Free shipping <span class="float-right text-gold">−RM {{ number_format($order->free_shipping_discount, 2) }}</span></p>@endif
                 <p class="mt-4 text-2xl">Total <span class="float-right text-gold">RM {{ number_format($order->total, 2) }}</span></p>
 
                 @if($order->payment_status === 'paid')

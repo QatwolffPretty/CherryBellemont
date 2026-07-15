@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\DeliveryMethod;
 use App\Models\Product;
 use App\Services\Cart;
+use App\Services\CouponService;
 use App\Services\ShippingCalculator;
 use App\Services\OrderNotifier;
 use App\Services\StripeCheckoutService;
@@ -19,7 +20,7 @@ use Illuminate\View\View;
 
 class CheckoutController extends Controller
 {
-    public function create(Cart $cart): View|RedirectResponse
+    public function create(Cart $cart, CouponService $coupons): View|RedirectResponse
     {
         $lines = $cart->lines();
         if ($lines->isEmpty()) return to_route('cart.index')->withErrors(['cart' => 'Your bag is empty.']);
@@ -28,11 +29,23 @@ class CheckoutController extends Controller
             return to_route('cart.index')->withErrors(['cart' => 'Checkout is temporarily unavailable because no delivery methods are active.']);
         }
         $pendingStripeOrder = session('stripe_pending_order');
+        $totals = $cart->totals($lines);
+        $couponSummary = $coupons->emptyResult($totals['subtotal'], 0);
+        $couponMessage = null;
 
-        return view('checkout.create', compact('lines', 'deliveryMethods', 'pendingStripeOrder') + $cart->totals($lines));
+        if ($cart->couponCode()) {
+            try {
+                $couponSummary = $coupons->calculate($cart->couponCode(), $totals['subtotal'], 0, old('customer_email', auth()->user()?->email));
+            } catch (ValidationException $exception) {
+                $cart->removeCoupon();
+                $couponMessage = (string) (collect($exception->errors())->flatten()->first() ?? 'Coupon is no longer available.');
+            }
+        }
+
+        return view('checkout.create', compact('lines', 'deliveryMethods', 'pendingStripeOrder', 'couponSummary', 'couponMessage') + $totals);
     }
 
-    public function store(StoreCheckoutRequest $request, Cart $cart, ShippingCalculator $shippingCalculator, OrderNotifier $notifier, StripeCheckoutService $stripe): RedirectResponse
+    public function store(StoreCheckoutRequest $request, Cart $cart, ShippingCalculator $shippingCalculator, CouponService $coupons, OrderNotifier $notifier, StripeCheckoutService $stripe): RedirectResponse
     {
         $contents = $cart->contents();
         if ($contents === []) return to_route('cart.index')->withErrors(['cart' => 'Your bag is empty.']);
@@ -43,7 +56,8 @@ class CheckoutController extends Controller
         }
         $data = $request->validated();
 
-        $order = DB::transaction(function () use ($contents, $data, $request, $shippingCalculator): Order {
+        $couponCode = $cart->couponCode();
+        $order = DB::transaction(function () use ($contents, $data, $request, $shippingCalculator, $coupons, $couponCode): Order {
             $products = Product::query()->whereIn('id', array_keys($contents))->lockForUpdate()->get()->keyBy('id');
             $items = [];
             $subtotalCents = 0;
@@ -60,11 +74,15 @@ class CheckoutController extends Controller
             $number = $this->orderNumber();
             $amount = fn (int $cents): string => number_format($cents / 100, 2, '.', '');
             $shippingCents=(int)round(((float)$shipping['shipping_fee'])*100);
+            $coupon = $coupons->calculate($couponCode, $subtotalCents, $shippingCents, $data['customer_email'], true);
             $shippingAddress = collect($data)->only(['customer_name', 'customer_email', 'customer_phone', 'address_line_1', 'address_line_2', 'city', 'state', 'postcode', 'country'])->all();
-            $order = Order::create(['user_id' => $request->user()?->id, 'number' => $number, 'order_number' => $number, 'guest_access_token' => Str::random(64), ...$shippingAddress, 'full_name' => $data['customer_name'], 'email' => $data['customer_email'], 'phone' => $data['customer_phone'], 'shipping_address' => $shippingAddress, 'customer_notes' => $data['customer_notes'] ?? null, 'delivery_instructions' => $data['delivery_instructions'] ?? null, 'shipping_zone_id'=>$shipping['shipping_zone_id'], 'delivery_method_id'=>$shipping['delivery_method_id'], 'shipping_method_name'=>$shipping['display_label'], 'shipping_fee'=>$amount($shippingCents), 'pickup_location'=>$shipping['pickup_location'], 'subtotal' => $amount($subtotalCents), 'total' => $amount($subtotalCents+$shippingCents), 'payment_method' => $data['payment_method'], 'payment_provider' => $data['payment_method'], 'payment_status' => 'pending', 'status' => 'pending', 'order_status' => 'pending']);
+            $order = Order::create(['user_id' => $request->user()?->id, 'number' => $number, 'order_number' => $number, 'guest_access_token' => Str::random(64), ...$shippingAddress, 'full_name' => $data['customer_name'], 'email' => $data['customer_email'], 'phone' => $data['customer_phone'], 'shipping_address' => $shippingAddress, 'customer_notes' => $data['customer_notes'] ?? null, 'delivery_instructions' => $data['delivery_instructions'] ?? null, 'shipping_zone_id'=>$shipping['shipping_zone_id'], 'delivery_method_id'=>$shipping['delivery_method_id'], 'shipping_method_name'=>$shipping['display_label'], 'shipping_fee'=>$amount($coupon['original_shipping_cents']), 'original_shipping_fee'=>$amount($coupon['original_shipping_cents']), 'free_shipping_discount'=>$amount($coupon['free_shipping_discount_cents']), 'coupon_id'=>$coupon['coupon']?->id, 'coupon_code'=>$coupon['coupon_code'], 'discount_amount'=>$amount($coupon['discount_cents']), 'pickup_location'=>$shipping['pickup_location'], 'subtotal' => $amount($subtotalCents), 'total' => $amount($coupon['total_cents']), 'payment_method' => $data['payment_method'], 'payment_provider' => $data['payment_method'], 'payment_status' => 'pending', 'status' => 'pending', 'order_status' => 'pending']);
             foreach ($items as $item) {
                 $product = $item['product'];
                 $order->items()->create(['product_id' => $product->id, 'name' => $product->name, 'product_name' => $product->name, 'quantity' => $item['quantity'], 'unit_price' => $amount($item['unitPriceCents']), 'total' => $amount($item['lineTotalCents']), 'line_total' => $amount($item['lineTotalCents'])]);
+            }
+            if ($coupon['coupon']) {
+                $coupons->recordUsage($coupon['coupon'], $order, $data['customer_email'], $coupon['discount_cents']);
             }
             foreach ($items as $item) $item['product']->decrement('stock', $item['quantity']);
             return $order;

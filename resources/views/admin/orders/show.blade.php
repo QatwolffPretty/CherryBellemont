@@ -41,9 +41,19 @@
                 <form class="space-y-4" method="POST" action="{{ route('admin.orders.update', $order) }}">
                     @csrf
                     @method('PATCH')
+                    <p><span class="text-cream/60">Payment Provider</span><br><x-admin.badge :status="$order->payment_provider ?? $order->payment_method" :label="$order->payment_provider ?? $order->payment_method" /></p>
                     <p><span class="text-cream/60">Payment Status</span><br><x-admin.badge :status="$order->payment_status" /></p>
                     <p><span class="text-cream/60">Order Status</span><br><x-admin.badge :status="$order->order_status" /></p>
-                    <p><span class="text-cream/60">Receipt Status</span><br><x-admin.badge :status="$latestReceipt?->status ?? 'pending'" :label="$latestReceipt?->status ?? 'Awaiting receipt'" /></p>
+                    <p><span class="text-cream/60">Receipt Status</span><br><x-admin.badge :status="$order->payment_method === 'stripe' ? 'approved' : ($latestReceipt?->status ?? 'pending')" :label="$order->payment_method === 'stripe' ? 'Not required' : ($latestReceipt?->status ?? 'Awaiting receipt')" /></p>
+                    @if(($order->payment_provider ?? $order->payment_method) === 'stripe')
+                        <div class="border-t border-cream/15 pt-4 text-sm text-cream/65">
+                            <p>Stripe session: {{ $order->stripe_checkout_session_id ? \Illuminate\Support\Str::limit($order->stripe_checkout_session_id, 22, '…') : '—' }}</p>
+                            <p class="mt-2">Payment intent: {{ $order->stripe_payment_intent_id ? \Illuminate\Support\Str::limit($order->stripe_payment_intent_id, 22, '…') : '—' }}</p>
+                            <p class="mt-2">Stripe status: {{ $order->stripe_payment_status ?: 'awaiting payment' }}</p>
+                            <p class="mt-2">Stripe paid: {{ $order->stripe_paid_at?->format('d M Y H:i') ?: '—' }}</p>
+                            @if($order->stripe_failure_reason)<p class="mt-2 text-gold">{{ $order->stripe_failure_reason }}</p>@endif
+                        </div>
+                    @endif
                     <p class="text-sm text-cream/65">Created: {{ $order->created_at->format('d M Y H:i') }}<br>Paid: {{ $latestReceipt && $latestReceipt->reviewed_at ? $latestReceipt->reviewed_at->format('d M Y H:i') : '—' }}<br>Shipped: {{ $order->shipped_at ? $order->shipped_at->format('d M Y H:i') : '—' }}<br>Delivered: {{ $order->delivered_at ? $order->delivered_at->format('d M Y H:i') : '—' }}</p>
                     <x-admin.select name="order_status" label="Fulfilment status">
                         @foreach(['pending','payment_review','paid','processing','packed','shipped','delivered','cancelled'] as $status)

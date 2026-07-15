@@ -9,8 +9,10 @@ use App\Models\Product;
 use App\Services\Cart;
 use App\Services\ShippingCalculator;
 use App\Services\OrderNotifier;
+use App\Services\StripeCheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -25,13 +27,20 @@ class CheckoutController extends Controller
         if ($deliveryMethods->isEmpty()) {
             return to_route('cart.index')->withErrors(['cart' => 'Checkout is temporarily unavailable because no delivery methods are active.']);
         }
-        return view('checkout.create', compact('lines','deliveryMethods') + $cart->totals($lines));
+        $pendingStripeOrder = session('stripe_pending_order');
+
+        return view('checkout.create', compact('lines', 'deliveryMethods', 'pendingStripeOrder') + $cart->totals($lines));
     }
 
-    public function store(StoreCheckoutRequest $request, Cart $cart, ShippingCalculator $shippingCalculator, OrderNotifier $notifier): RedirectResponse
+    public function store(StoreCheckoutRequest $request, Cart $cart, ShippingCalculator $shippingCalculator, OrderNotifier $notifier, StripeCheckoutService $stripe): RedirectResponse
     {
         $contents = $cart->contents();
         if ($contents === []) return to_route('cart.index')->withErrors(['cart' => 'Your bag is empty.']);
+        if (session()->has('stripe_pending_order')) {
+            return to_route('checkout.create')->withErrors([
+                'stripe' => 'Please retry the existing Stripe payment before placing another order.',
+            ]);
+        }
         $data = $request->validated();
 
         $order = DB::transaction(function () use ($contents, $data, $request, $shippingCalculator): Order {
@@ -52,7 +61,7 @@ class CheckoutController extends Controller
             $amount = fn (int $cents): string => number_format($cents / 100, 2, '.', '');
             $shippingCents=(int)round(((float)$shipping['shipping_fee'])*100);
             $shippingAddress = collect($data)->only(['customer_name', 'customer_email', 'customer_phone', 'address_line_1', 'address_line_2', 'city', 'state', 'postcode', 'country'])->all();
-            $order = Order::create(['user_id' => $request->user()?->id, 'number' => $number, 'order_number' => $number, 'guest_access_token' => Str::random(64), ...$shippingAddress, 'full_name' => $data['customer_name'], 'email' => $data['customer_email'], 'phone' => $data['customer_phone'], 'shipping_address' => $shippingAddress, 'customer_notes' => $data['customer_notes'] ?? null, 'delivery_instructions' => $data['delivery_instructions'] ?? null, 'shipping_zone_id'=>$shipping['shipping_zone_id'], 'delivery_method_id'=>$shipping['delivery_method_id'], 'shipping_method_name'=>$shipping['display_label'], 'shipping_fee'=>$amount($shippingCents), 'pickup_location'=>$shipping['pickup_location'], 'subtotal' => $amount($subtotalCents), 'total' => $amount($subtotalCents+$shippingCents), 'payment_method' => $data['payment_method'], 'payment_status' => 'pending', 'status' => 'pending', 'order_status' => 'pending']);
+            $order = Order::create(['user_id' => $request->user()?->id, 'number' => $number, 'order_number' => $number, 'guest_access_token' => Str::random(64), ...$shippingAddress, 'full_name' => $data['customer_name'], 'email' => $data['customer_email'], 'phone' => $data['customer_phone'], 'shipping_address' => $shippingAddress, 'customer_notes' => $data['customer_notes'] ?? null, 'delivery_instructions' => $data['delivery_instructions'] ?? null, 'shipping_zone_id'=>$shipping['shipping_zone_id'], 'delivery_method_id'=>$shipping['delivery_method_id'], 'shipping_method_name'=>$shipping['display_label'], 'shipping_fee'=>$amount($shippingCents), 'pickup_location'=>$shipping['pickup_location'], 'subtotal' => $amount($subtotalCents), 'total' => $amount($subtotalCents+$shippingCents), 'payment_method' => $data['payment_method'], 'payment_provider' => $data['payment_method'], 'payment_status' => 'pending', 'status' => 'pending', 'order_status' => 'pending']);
             foreach ($items as $item) {
                 $product = $item['product'];
                 $order->items()->create(['product_id' => $product->id, 'name' => $product->name, 'product_name' => $product->name, 'quantity' => $item['quantity'], 'unit_price' => $amount($item['unitPriceCents']), 'total' => $amount($item['lineTotalCents']), 'line_total' => $amount($item['lineTotalCents'])]);
@@ -61,6 +70,38 @@ class CheckoutController extends Controller
             return $order;
         });
         $notifier->send($order, 'order_placed');
+        if ($order->payment_method === 'stripe') {
+            try {
+                $session = $stripe->beginCheckout($order);
+
+                $cart->clear();
+                session()->forget('stripe_pending_order');
+
+                return redirect()->away($session->url);
+            } catch (\Throwable $exception) {
+                Log::error('Unable to start Stripe Checkout.', [
+                    'order_number' => $order->order_number,
+                    'exception' => $exception,
+                ]);
+
+                try {
+                    $stripe->recordCheckoutFailure($order);
+                } catch (\Throwable $recordException) {
+                    Log::error('Unable to record a Stripe Checkout initialization failure.', [
+                        'order_number' => $order->order_number,
+                        'exception' => $recordException,
+                    ]);
+                }
+
+                session()->put('stripe_pending_order', [
+                    'order' => $order->order_number,
+                    'token' => $order->guest_access_token,
+                ]);
+
+                return to_route('checkout.create')
+                    ->withErrors(['stripe' => 'Stripe Checkout could not be started. Please try again.']);
+            }
+        }
         $cart->clear();
         return to_route('orders.guest.duitnow', ['order' => $order->order_number, 'token' => $order->guest_access_token])->with('success', 'Order '.$order->order_number.' has been created.');
     }

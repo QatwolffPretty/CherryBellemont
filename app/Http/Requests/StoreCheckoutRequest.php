@@ -29,7 +29,7 @@ class StoreCheckoutRequest extends FormRequest
             'delivery_method_id' => ['required', 'integer', 'exists:delivery_methods,id'],
             'delivery_instructions' => ['nullable', 'string', 'max:2000'],
             'customer_notes' => ['nullable', 'string', 'max:2000'],
-            'payment_method' => ['required', Rule::in(['duitnow'])],
+            'payment_method' => ['required', Rule::in(['duitnow', 'stripe'])],
         ];
     }
 

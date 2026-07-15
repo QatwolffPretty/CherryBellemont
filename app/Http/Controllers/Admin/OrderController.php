@@ -21,6 +21,15 @@ class OrderController extends Controller
         $orders = Order::query()->latest();
         if ($search = $request->string('search')->trim()->value()) $orders->where(fn ($q) => $q->where('order_number', 'like', "%{$search}%")->orWhere('customer_name', 'like', "%{$search}%")->orWhere('customer_email', 'like', "%{$search}%")->orWhere('customer_phone', 'like', "%{$search}%"));
         foreach (['payment_status', 'order_status', 'delivery_method_id'] as $filter) if ($request->filled($filter)) $orders->where($filter, $request->$filter);
+        if ($request->filled('payment_provider')) {
+            $orders->where(function ($query) use ($request): void {
+                $query->where('payment_provider', $request->payment_provider);
+
+                if ($request->payment_provider === 'duitnow') {
+                    $query->orWhere(fn ($legacy) => $legacy->whereNull('payment_provider')->where('payment_method', 'duitnow'));
+                }
+            });
+        }
         return view('admin.orders.index', [
             'orders' => $orders->paginate(20)->withQueryString(),
             'deliveryMethods' => DeliveryMethod::query()->orderBy('sort_order')->orderBy('name')->get(),

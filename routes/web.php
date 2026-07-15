@@ -11,6 +11,8 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentReceiptController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShippingQuoteController;
+use App\Http\Controllers\StripeCheckoutController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\StorefrontController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +33,13 @@ Route::get('/orders/{order:number}/access/{token}', [OrderController::class, 'gu
 Route::get('/orders/{order:number}/access/{token}/confirmation', [OrderController::class, 'guestConfirmation'])->name('orders.guest.confirmation');
 Route::get('/orders/{order:number}/access/{token}/duitnow', [OrderController::class, 'guestDuitNowInstructions'])->name('orders.guest.duitnow');
 Route::post('/orders/{order:number}/access/{token}/payment-receipt', [PaymentReceiptController::class, 'store'])->middleware('throttle:6,1')->name('orders.payment-receipts.store');
+Route::get('/orders/{order:number}/access/{token}/stripe/checkout', [StripeCheckoutController::class, 'start'])->middleware('throttle:6,1')->name('stripe.checkout.start');
+Route::post('/orders/{order:number}/access/{token}/stripe/retry', [StripeCheckoutController::class, 'retry'])->middleware('throttle:6,1')->name('stripe.retry');
+Route::get('/orders/{order:number}/access/{token}/stripe/cancel', [StripeCheckoutController::class, 'cancel'])->name('stripe.cancel');
+Route::get('/stripe/success', [StripeCheckoutController::class, 'success'])->name('stripe.success');
+Route::post('/stripe/webhook', StripeWebhookController::class)
+    ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class)
+    ->name('stripe.webhook');
 
 Route::get('/dashboard', function () {
     return view('dashboard');

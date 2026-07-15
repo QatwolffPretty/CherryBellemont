@@ -16,7 +16,11 @@
     <p>Order <strong>{{ $order->order_number }}</strong></p>
 
     @if($event === 'order_placed')
-        <p>Payment method: {{ strtoupper($order->payment_method) }}. Payment is pending; please upload your DuitNow receipt to complete verification.</p>
+        @if($order->payment_method === 'duitnow')
+            <p>Payment method: DUITNOW. Payment is pending; please upload your DuitNow receipt to complete verification.</p>
+        @else
+            <p>Payment method: CARD PAYMENT BY STRIPE. Your payment is pending and will be confirmed after Stripe securely verifies it.</p>
+        @endif
     @elseif($event === 'receipt_submitted')
         <p>Your receipt is pending review. Payment is not confirmed until approved.</p>
     @elseif($event === 'payment_approved')

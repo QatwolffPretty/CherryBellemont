@@ -7,6 +7,19 @@
             @error('cart')
                 <p class="mt-6 border border-gold/50 p-4 text-gold">{{ $message }}</p>
             @enderror
+            @error('stripe')
+                <p class="mt-6 border border-gold/50 p-4 text-gold">{{ $message }}</p>
+            @enderror
+
+            @if($pendingStripeOrder)
+                <div class="mt-6 border border-gold/50 p-5">
+                    <p class="text-gold">Your previous Stripe Checkout attempt was not started. Your order is reserved and can be retried without creating another order.</p>
+                    <form class="mt-4" method="POST" action="{{ route('stripe.retry', ['order' => $pendingStripeOrder['order'], 'token' => $pendingStripeOrder['token']]) }}">
+                        @csrf
+                        <button class="luxury-link" type="submit">Retry Card Payment</button>
+                    </form>
+                </div>
+            @endif
 
             <form id="checkout-form" class="mt-10 space-y-5" method="POST" action="{{ route('checkout.store') }}">
                 @csrf
@@ -49,13 +62,13 @@
 
                 <div>
                     <p class="mb-2">Payment method</p>
-                    <label><input type="radio" name="payment_method" value="duitnow" checked> DuitNow manual payment</label>
-                    <span class="ml-4 text-cream/45">Stripe &mdash; coming soon</span>
+                    <label><input type="radio" name="payment_method" value="duitnow" @checked(old('payment_method', 'duitnow') === 'duitnow')> DuitNow manual payment</label>
+                    <label class="ml-4"><input type="radio" name="payment_method" value="stripe" @checked(old('payment_method') === 'stripe')> Card Payment by Stripe</label>
                     @error('payment_method')<p class="mt-1 text-gold">{{ $message }}</p>@enderror
                 </div>
 
                 <p id="shipping-message" class="text-sm text-cream/65" aria-live="polite">Enter delivery details to calculate shipping.</p>
-                <button id="place-order" class="luxury-link" type="submit">Place order</button>
+                <button id="place-order" class="luxury-link" type="submit" @disabled($pendingStripeOrder)>Place order</button>
             </form>
         </div>
 

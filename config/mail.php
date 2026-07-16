@@ -49,6 +49,17 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        'brevo' => [
+            'transport' => 'smtp',
+            'scheme' => env('BREVO_SMTP_SCHEME'),
+            'host' => env('BREVO_SMTP_HOST', 'smtp-relay.brevo.com'),
+            'port' => env('BREVO_SMTP_PORT', 587),
+            'username' => env('BREVO_SMTP_USERNAME'),
+            'password' => env('BREVO_SMTP_PASSWORD'),
+            'timeout' => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
@@ -113,6 +124,23 @@ return [
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Markdown Mail
+    |--------------------------------------------------------------------------
+    |
+    | Future transactional mailables can use the Cherry Bellemont Markdown
+    | theme while sharing the branded Blade components in resources/views.
+    |
+    */
+
+    'markdown' => [
+        'theme' => 'cherry-bellemont',
+        'paths' => [
+            resource_path('views/vendor/mail'),
+        ],
     ],
 
 ];

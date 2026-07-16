@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Services\Cart;
 use App\Services\StripeCheckoutService;
+use App\Services\AdminNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -13,21 +14,21 @@ use Throwable;
 
 class StripeCheckoutController extends Controller
 {
-    public function start(Order $order, string $token, StripeCheckoutService $stripe, Cart $cart): RedirectResponse
+    public function start(Order $order, string $token, StripeCheckoutService $stripe, Cart $cart, AdminNotificationService $adminNotifier): RedirectResponse
     {
         $this->authorizeGuest($order, $token);
 
-        return $this->redirectToCheckout($order, $token, $stripe, $cart);
+        return $this->redirectToCheckout($order, $token, $stripe, $cart, $adminNotifier);
     }
 
-    public function retry(Order $order, string $token, StripeCheckoutService $stripe, Cart $cart): RedirectResponse
+    public function retry(Order $order, string $token, StripeCheckoutService $stripe, Cart $cart, AdminNotificationService $adminNotifier): RedirectResponse
     {
         $this->authorizeGuest($order, $token);
         abort_unless($order->payment_method === 'stripe', 404);
         abort_if($order->payment_status === 'paid', 422, 'This order has already been paid.');
         abort_if($order->order_status === 'cancelled', 422, 'Cancelled orders cannot be paid again.');
 
-        return $this->redirectToCheckout($order, $token, $stripe, $cart, true);
+        return $this->redirectToCheckout($order, $token, $stripe, $cart, $adminNotifier, true);
     }
 
     public function success(Request $request, StripeCheckoutService $stripe): View
@@ -65,7 +66,7 @@ class StripeCheckoutController extends Controller
         return view('orders.stripe-cancel', compact('order', 'token'));
     }
 
-    private function redirectToCheckout(Order $order, string $token, StripeCheckoutService $stripe, Cart $cart, bool $retry = false): RedirectResponse
+    private function redirectToCheckout(Order $order, string $token, StripeCheckoutService $stripe, Cart $cart, AdminNotificationService $adminNotifier, bool $retry = false): RedirectResponse
     {
         try {
             $session = $stripe->beginCheckout($order, $retry);
@@ -79,12 +80,23 @@ class StripeCheckoutController extends Controller
                 'exception' => $exception,
             ]);
 
+            $isRepeatedFailure = filled($order->stripe_failure_reason);
             try {
                 $stripe->recordCheckoutFailure($order);
             } catch (Throwable $recordException) {
                 Log::error('Unable to record a Stripe Checkout initialization failure.', [
                     'order_number' => $order->order_number,
                     'exception' => $recordException,
+                    ]);
+            }
+
+            if ($isRepeatedFailure) {
+                $adminNotifier->send('payment_attention', [
+                    'order' => $order,
+                    'provider' => 'Stripe',
+                    'summary' => 'Stripe Checkout could not be initialized again for this order.',
+                    'reference' => $order->stripe_checkout_session_id,
+                    'occurredAt' => now(),
                 ]);
             }
 

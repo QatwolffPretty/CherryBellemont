@@ -4,6 +4,12 @@
             <x-slot:breadcrumb>
                 <x-admin.button variant="outline" :href="route('admin.orders.index')">Back to orders</x-admin.button>
             </x-slot:breadcrumb>
+            <x-slot:actions>
+                @if($order->payment_status === 'paid')
+                    <x-admin.button variant="outline" icon="bi-file-earmark-pdf" :href="route('admin.orders.invoice', $order)">Download Invoice</x-admin.button>
+                @endif
+                <x-admin.button variant="outline" icon="bi-printer" :href="route('admin.orders.packing-slip', $order)" target="_blank">Print Packing Slip</x-admin.button>
+            </x-slot:actions>
         </x-admin.page-header>
 
         @if(session('success'))<p class="mt-6 border border-gold/40 p-4 text-gold">{{ session('success') }}</p>@endif

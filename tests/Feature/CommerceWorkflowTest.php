@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ShippingZone;
 use App\Models\User;
 use App\Notifications\OrderCustomerNotification;
+use App\Notifications\AdminOperationalNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -30,14 +31,14 @@ class CommerceWorkflowTest extends TestCase
         $this->actingAs($admin)->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('Pending Orders')
-            ->assertSee('Pending Payment Reviews')
+            ->assertSee('Pending DuitNow Receipts')
             ->assertSee('Low Stock Products');
         $this->actingAs($admin)->get(route('admin.customers.index'))
             ->assertOk()
-            ->assertSee('Customer Profiles');
+            ->assertSee('Customer records');
         $this->actingAs($admin)->get(route('admin.reports.index'))
             ->assertOk()
-            ->assertSee('Reports module coming soon.');
+            ->assertSee('Gross paid revenue');
         $this->actingAs($admin)->post(route('admin.products.store'), [
             'name' => 'Atelier Jacket', 'description' => 'A tailored piece.', 'price' => 420, 'stock' => 8, 'status' => 'active',
             'image' => UploadedFile::fake()->image('atelier-jacket.jpg'),
@@ -103,6 +104,8 @@ class CommerceWorkflowTest extends TestCase
         $this->assertSame(3, $product->fresh()->stock);
         $this->assertDatabaseHas('order_items', ['order_id' => $order->id, 'product_id' => $product->id, 'quantity' => 2]);
         Notification::assertSentOnDemand(OrderCustomerNotification::class, fn (OrderCustomerNotification $notification) => $notification->event === 'order_placed');
+        Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'new_order');
+        Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'low_stock');
     }
 
     public function test_guest_self_pickup_checkout_does_not_require_an_address(): void
@@ -152,6 +155,7 @@ class CommerceWorkflowTest extends TestCase
         $this->assertSame('pending', $receipt->status);
         Storage::disk('public')->assertExists($receipt->path);
         Notification::assertSentOnDemand(OrderCustomerNotification::class, fn (OrderCustomerNotification $notification) => $notification->event === 'receipt_submitted');
+        Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'new_duitnow_receipt');
 
         $this->post(route('orders.payment-receipts.store', ['order' => $order->number, 'token' => $order->guest_access_token]), ['receipt' => UploadedFile::fake()->image('second.jpg')])->assertStatus(422);
 
@@ -170,6 +174,7 @@ class CommerceWorkflowTest extends TestCase
         $this->assertSame('paid', $order->fresh()->payment_status);
         $this->assertSame(3, $product->fresh()->stock);
         Notification::assertSentOnDemand(OrderCustomerNotification::class, fn (OrderCustomerNotification $notification) => $notification->event === 'payment_approved');
+        Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'duitnow_payment_approved');
 
         $this->post(route('orders.payment-receipts.store', ['order' => $order->number, 'token' => $order->guest_access_token]), ['receipt' => UploadedFile::fake()->image('paid.jpg')])->assertStatus(422);
     }
@@ -200,6 +205,7 @@ class CommerceWorkflowTest extends TestCase
         $this->actingAs($admin)->patch(route('admin.orders.update', $cancelled), ['order_status' => 'cancelled', 'cancellation_reason' => 'Customer request'])->assertRedirect();
         $this->assertSame(5, $product->fresh()->stock);
         $this->assertNotNull($cancelled->fresh()->stock_restored_at);
+        Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'order_cancelled');
     }
 
     private function product(array $attributes = []): Product

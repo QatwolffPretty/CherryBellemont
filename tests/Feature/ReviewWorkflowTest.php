@@ -7,7 +7,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Review;
 use App\Models\User;
-use App\Notifications\ReviewSubmittedNotification;
+use App\Notifications\AdminOperationalNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -22,7 +22,7 @@ class ReviewWorkflowTest extends TestCase
     public function test_guest_with_a_paid_delivered_order_can_submit_one_verified_review(): void
     {
         Notification::fake();
-        $admin = User::factory()->create(['is_admin' => true]);
+        User::factory()->create(['is_admin' => true]);
         [$product, $order, $item] = $this->purchasedItem();
 
         $this->get(route('reviews.create', $this->reviewContext($product, $order)))
@@ -37,7 +37,7 @@ class ReviewWorkflowTest extends TestCase
         $this->assertTrue($review->is_verified_purchase);
         $this->assertFalse($review->is_approved);
         $this->assertSame('pending', $review->status);
-        Notification::assertSentTo($admin, ReviewSubmittedNotification::class);
+        Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'new_review');
     }
 
     public function test_guests_cannot_review_with_another_orders_token_or_a_product_not_in_the_order(): void

@@ -103,6 +103,11 @@
 
                 @if($order->payment_status === 'paid')
                     <p class="mt-8 border border-gold/40 p-4 text-gold">Payment Approved</p>
+                    @if(isset($token) && $token)
+                        <a class="luxury-link mt-4 inline-block" href="{{ route('orders.guest.invoice', ['order' => $order->order_number ?? $order->number, 'token' => $token]) }}">Download Invoice</a>
+                    @elseif(auth()->check())
+                        <a class="luxury-link mt-4 inline-block" href="{{ route('orders.invoice', $order) }}">Download Invoice</a>
+                    @endif
                 @elseif($order->payment_method === 'stripe' && $order->stripe_failure_reason)
                     <p class="mt-8 border border-gold/40 p-4 text-gold">{{ $order->stripe_failure_reason }}</p>
                 @elseif($latestReceipt && $latestReceipt->status === 'pending')

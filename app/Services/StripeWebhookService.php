@@ -16,6 +16,7 @@ class StripeWebhookService
     public function __construct(
         private readonly StripeCheckoutService $stripe,
         private readonly OrderNotifier $notifier,
+        private readonly AdminNotificationService $adminNotifier,
     ) {}
 
     public function process(object $event, array $payload): void
@@ -51,6 +52,16 @@ class StripeWebhookService
                 'exception' => $exception,
             ]);
 
+            if ($exception instanceof StripePaymentVerificationException) {
+                $this->adminNotifier->send('payment_attention', [
+                    'order' => $exception->order,
+                    'provider' => 'Stripe',
+                    'summary' => $exception->getMessage(),
+                    'reference' => $event->id ?? $this->identifier($object?->id ?? null),
+                    'occurredAt' => now(),
+                ]);
+            }
+
             throw $exception;
         }
 
@@ -58,6 +69,7 @@ class StripeWebhookService
 
         if ($approvedOrder) {
             $this->notifier->send($approvedOrder, 'payment_approved');
+            $this->adminNotifier->send('stripe_payment_confirmed', ['order' => $approvedOrder]);
         }
     }
 

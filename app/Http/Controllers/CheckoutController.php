@@ -10,6 +10,7 @@ use App\Services\Cart;
 use App\Services\CouponService;
 use App\Services\ShippingCalculator;
 use App\Services\OrderNotifier;
+use App\Services\AdminNotificationService;
 use App\Services\StripeCheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ class CheckoutController extends Controller
         return view('checkout.create', compact('lines', 'deliveryMethods', 'pendingStripeOrder', 'couponSummary', 'couponMessage') + $totals);
     }
 
-    public function store(StoreCheckoutRequest $request, Cart $cart, ShippingCalculator $shippingCalculator, CouponService $coupons, OrderNotifier $notifier, StripeCheckoutService $stripe): RedirectResponse
+    public function store(StoreCheckoutRequest $request, Cart $cart, ShippingCalculator $shippingCalculator, CouponService $coupons, OrderNotifier $notifier, AdminNotificationService $adminNotifier, StripeCheckoutService $stripe): RedirectResponse
     {
         $contents = $cart->contents();
         if ($contents === []) return to_route('cart.index')->withErrors(['cart' => 'Your bag is empty.']);
@@ -57,7 +58,9 @@ class CheckoutController extends Controller
         $data = $request->validated();
 
         $couponCode = $cart->couponCode();
-        $order = DB::transaction(function () use ($contents, $data, $request, $shippingCalculator, $coupons, $couponCode): Order {
+        $inventoryAlerts = [];
+        $lowStockThreshold = (int) config('store.low_stock_threshold', 3);
+        $order = DB::transaction(function () use ($contents, $data, $request, $shippingCalculator, $coupons, $couponCode, &$inventoryAlerts, $lowStockThreshold): Order {
             $products = Product::query()->whereIn('id', array_keys($contents))->lockForUpdate()->get()->keyBy('id');
             $items = [];
             $subtotalCents = 0;
@@ -84,10 +87,26 @@ class CheckoutController extends Controller
             if ($coupon['coupon']) {
                 $coupons->recordUsage($coupon['coupon'], $order, $data['customer_email'], $coupon['discount_cents']);
             }
-            foreach ($items as $item) $item['product']->decrement('stock', $item['quantity']);
+            foreach ($items as $item) {
+                $product = $item['product'];
+                $previousStock = (int) $product->stock;
+                $remainingStock = $previousStock - $item['quantity'];
+                $product->decrement('stock', $item['quantity']);
+
+                if ($previousStock > $lowStockThreshold && $remainingStock <= $lowStockThreshold && $remainingStock > 0) {
+                    $inventoryAlerts[] = ['event' => 'low_stock', 'product' => $product->fresh()];
+                }
+                if ($previousStock > 0 && $remainingStock === 0) {
+                    $inventoryAlerts[] = ['event' => 'out_of_stock', 'product' => $product->fresh()];
+                }
+            }
             return $order;
         });
         $notifier->send($order, 'order_placed');
+        $adminNotifier->send('new_order', ['order' => $order->loadMissing('items')]);
+        foreach ($inventoryAlerts as $alert) {
+            $adminNotifier->send($alert['event'], ['product' => $alert['product']]);
+        }
         if ($order->payment_method === 'stripe') {
             try {
                 $session = $stripe->beginCheckout($order);
@@ -102,12 +121,23 @@ class CheckoutController extends Controller
                     'exception' => $exception,
                 ]);
 
+                $isRepeatedFailure = filled($order->stripe_failure_reason);
                 try {
                     $stripe->recordCheckoutFailure($order);
                 } catch (\Throwable $recordException) {
                     Log::error('Unable to record a Stripe Checkout initialization failure.', [
                         'order_number' => $order->order_number,
                         'exception' => $recordException,
+                    ]);
+                }
+
+                if ($isRepeatedFailure) {
+                    $adminNotifier->send('payment_attention', [
+                        'order' => $order,
+                        'provider' => 'Stripe',
+                        'summary' => 'Stripe Checkout could not be initialized again for this order.',
+                        'reference' => $order->stripe_checkout_session_id,
+                        'occurredAt' => now(),
                     ]);
                 }
 

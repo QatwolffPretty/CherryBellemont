@@ -9,6 +9,7 @@ use App\Models\ShippingZone;
 use App\Models\StripeWebhookEvent;
 use App\Models\User;
 use App\Notifications\OrderCustomerNotification;
+use App\Notifications\AdminOperationalNotification;
 use App\Services\StripeCheckoutService;
 use App\Services\StripeWebhookService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -147,6 +148,7 @@ class StripeCheckoutTest extends TestCase
         $this->assertNotNull($order->fresh()->stripe_paid_at);
         $this->assertSame(5, $product->fresh()->stock);
         Notification::assertSentOnDemand(OrderCustomerNotification::class, fn (OrderCustomerNotification $notification) => $notification->event === 'payment_approved');
+        Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'stripe_payment_confirmed');
     }
 
     public function test_payment_intent_succeeded_marks_an_order_paid_using_its_saved_intent_id(): void
@@ -212,10 +214,12 @@ class StripeCheckoutTest extends TestCase
 
         $this->assertDatabaseCount('stripe_webhook_events', 1);
         Notification::assertSentOnDemand(OrderCustomerNotification::class, 1);
+        Notification::assertSentOnDemand(AdminOperationalNotification::class, 1);
     }
 
     public function test_amount_mismatch_does_not_mark_order_paid(): void
     {
+        Notification::fake();
         $order = $this->stripeOrder(['stripe_checkout_session_id' => 'cs_test_amount']);
 
         $this->postStripeEvent($this->sessionEvent($order, 'evt_amount_mismatch', 9999, 'myr'))->assertServerError();
@@ -223,6 +227,7 @@ class StripeCheckoutTest extends TestCase
         $this->assertSame('pending', $order->fresh()->payment_status);
         $this->assertSame('Stripe payment amount verification failed.', $order->fresh()->stripe_failure_reason);
         $this->assertDatabaseHas('stripe_webhook_events', ['stripe_event_id' => 'evt_amount_mismatch', 'processed_at' => null]);
+        Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'payment_attention');
     }
 
     public function test_currency_mismatch_does_not_mark_order_paid(): void

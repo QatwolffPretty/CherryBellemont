@@ -38,8 +38,24 @@
 
     <main>{{ $slot }}</main>
 
-    <footer class="border-t border-cream/15 bg-wine-deep px-6 py-10 text-center text-sm tracking-wider text-cream/60">
-        &copy; {{ date('Y') }} Cherry Bellemont <span class="mx-2 text-gold">&mdash;</span> All Rights Reserved
+    <x-newsletter.subscribe-form source="newsletter_section" />
+
+    <footer class="border-t border-cream/15 bg-wine-deep px-6 py-12 text-center text-sm tracking-wider text-cream/60">
+        <div class="mx-auto max-w-7xl">
+            <div>
+                <p class="font-display text-lg tracking-[.18em] text-cream">CHERRY BELLEMONT</p>
+                <nav class="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-3" aria-label="Footer navigation">
+                    <a class="nav-link" href="{{ route('faq.index') }}">FAQ</a>
+                    <a class="nav-link" href="{{ route('contact') }}">Contact</a>
+                    <a class="nav-link" href="{{ route('shipping.policy') }}">Shipping</a>
+                    <a class="nav-link" href="{{ route('refund.policy') }}">Refund &amp; Returns</a>
+                    <a class="nav-link" href="{{ route('privacy.policy') }}">Privacy</a>
+                    <a class="nav-link" href="{{ route('terms.policy') }}">Terms &amp; Conditions</a>
+                </nav>
+                <x-storefront.social-links centered heading-id="footer-social-links-heading" class="mt-8" />
+                <p class="mt-8">&copy; {{ date('Y') }} Cherry Bellemont <span class="mx-2 text-gold">&mdash;</span> All Rights Reserved</p>
+            </div>
+        </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

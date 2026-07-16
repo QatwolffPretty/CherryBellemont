@@ -1,0 +1,14 @@
+body,
+body * {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #FCFAF7;
+    color: #4A1023;
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+a {
+    color: #4A1023;
+}

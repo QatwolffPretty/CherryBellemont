@@ -3,18 +3,12 @@
 namespace App\Services;
 
 use App\Models\Review;
-use App\Models\User;
-use App\Notifications\ReviewSubmittedNotification;
-use Illuminate\Support\Facades\Notification;
-
 class ReviewNotifier
 {
+    public function __construct(private readonly AdminNotificationService $adminNotifier) {}
+
     public function notifyAdmins(Review $review): void
     {
-        $admins = User::query()->where('is_admin', true)->get();
-
-        if ($admins->isNotEmpty()) {
-            Notification::send($admins, new ReviewSubmittedNotification($review));
-        }
+        $this->adminNotifier->send('new_review', ['review' => $review->loadMissing('product')]);
     }
 }

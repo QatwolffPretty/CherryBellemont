@@ -10,6 +10,7 @@
         <x-admin.page-header eyebrow="Atelier intelligence" title="Business overview" subtitle="A live view of sales, payments, fulfilment, and customer activity.">
             <x-slot:actions>
                 <x-admin.button variant="outline" :href="route('admin.reports.index')" icon="bi-graph-up">Reports</x-admin.button>
+                <x-admin.button :href="route('admin.newsletter.campaigns.create')" icon="bi-send">Create Newsletter Campaign</x-admin.button>
             </x-slot:actions>
         </x-admin.page-header>
 

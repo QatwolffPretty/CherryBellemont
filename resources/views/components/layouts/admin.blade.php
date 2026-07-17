@@ -27,7 +27,8 @@
                 <a class="admin-nav {{ request()->routeIs('admin.shipping-zones.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.shipping-zones.index') }}"><i class="bi bi-geo-alt"></i> Shipping Zones</a>
                 <a class="admin-nav {{ request()->routeIs('admin.delivery-methods.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.delivery-methods.index') }}"><i class="bi bi-truck"></i> Delivery Methods</a>
                 <a class="admin-nav {{ request()->routeIs('admin.coupons.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.coupons.index') }}"><i class="bi bi-ticket-perforated"></i> Coupons</a>
-                <a class="admin-nav {{ request()->routeIs('admin.newsletter.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.newsletter.index') }}"><i class="bi bi-envelope-paper"></i> Newsletter</a>
+                <a class="admin-nav {{ request()->routeIs('admin.newsletter.index', 'admin.newsletter.unsubscribe', 'admin.newsletter.export', 'admin.newsletter.destroy') ? 'admin-nav-active' : '' }}" href="{{ route('admin.newsletter.index') }}"><i class="bi bi-envelope-paper"></i> Newsletter Subscribers</a>
+                <a class="admin-nav {{ request()->routeIs('admin.newsletter.campaigns.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.newsletter.campaigns.index') }}"><i class="bi bi-send"></i> Newsletter Campaigns</a>
                 <a class="admin-nav {{ request()->routeIs('admin.faqs.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.faqs.index') }}"><i class="bi bi-patch-question"></i> FAQ</a>
                 <a class="admin-nav {{ request()->routeIs('admin.customers.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.customers.index') }}"><i class="bi bi-people"></i> Customers</a>
                 <a class="admin-nav {{ request()->routeIs('admin.reports.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.reports.index') }}"><i class="bi bi-graph-up"></i> Reports</a>

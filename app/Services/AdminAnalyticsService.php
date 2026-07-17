@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Coupon;
 use App\Models\NewsletterSubscriber;
+use App\Models\NewsletterCampaign;
 use App\Models\Order;
 use App\Models\PaymentReceipt;
 use App\Models\Product;
@@ -112,6 +113,10 @@ class AdminAnalyticsService
             ['label' => 'Low Stock Products', 'value' => Product::query()->where('stock', '<=', $threshold)->count(), 'subtitle' => $threshold.' or fewer remaining', 'href' => route('admin.products.index', ['low_stock' => 1])],
             ['label' => 'Active Coupons', 'value' => $this->activeCoupons(), 'href' => route('admin.coupons.index', ['status' => 'active'])],
             ['label' => 'Newsletter Subscribers', 'value' => NewsletterSubscriber::query()->subscribed()->count(), 'href' => route('admin.newsletter.index', ['status' => 'subscribed'])],
+            ['label' => 'Draft Campaigns', 'value' => NewsletterCampaign::query()->drafts()->count(), 'href' => route('admin.newsletter.campaigns.index', ['status' => 'draft'])],
+            ['label' => 'Scheduled Campaigns', 'value' => NewsletterCampaign::query()->scheduled()->count(), 'href' => route('admin.newsletter.campaigns.index', ['status' => 'scheduled'])],
+            ['label' => 'Sent Campaigns', 'value' => NewsletterCampaign::query()->sent()->count(), 'href' => route('admin.newsletter.campaigns.index', ['status' => 'sent'])],
+            ['label' => 'Latest Campaign', 'value' => $this->latestCampaignName(), 'href' => route('admin.newsletter.campaigns.index')],
             ['label' => 'Pending Reviews', 'value' => Review::query()->where('status', 'pending')->count(), 'href' => route('admin.reviews.index', ['status' => 'pending']), 'accent' => true],
         ];
     }
@@ -330,6 +335,11 @@ class AdminAnalyticsService
             ->where(fn (Builder $query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
             ->where(fn (Builder $query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->count();
+    }
+
+    private function latestCampaignName(): string
+    {
+        return NewsletterCampaign::query()->latest()->value('name') ?: 'No campaigns';
     }
 
     private function lowStockThreshold(): int

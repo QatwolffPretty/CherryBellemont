@@ -1,7 +1,10 @@
 <x-layouts.admin title="Newsletter | Cherry Bellemont">
     <x-admin.section width="7xl">
         <x-admin.page-header eyebrow="Client relationships" title="Newsletter subscribers" subtitle="Manage subscribers and export the active Cherry Bellemont List.">
-            <x-slot:actions><x-admin.button variant="outline" :href="route('admin.newsletter.export')" icon="bi-download">Export active CSV</x-admin.button></x-slot:actions>
+            <x-slot:actions>
+                <x-admin.button variant="outline" :href="route('admin.newsletter.export')" icon="bi-download">Export active CSV</x-admin.button>
+                <x-admin.button :href="route('admin.newsletter.campaigns.index')" icon="bi-send">Campaigns</x-admin.button>
+            </x-slot:actions>
         </x-admin.page-header>
 
         @if(session('success'))<p class="mt-6 border border-gold/40 p-4 text-gold">{{ session('success') }}</p>@endif

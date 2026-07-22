@@ -14,6 +14,10 @@ class QueueNewsletterCampaignDeliveries implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $tries = 3;
+
+    public array $backoff = [30, 120, 300];
+
     public function __construct(public readonly int $campaignId)
     {
     }

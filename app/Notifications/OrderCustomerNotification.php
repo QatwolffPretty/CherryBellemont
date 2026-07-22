@@ -15,6 +15,10 @@ class OrderCustomerNotification extends Notification implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
+    public int $tries = 3;
+
+    public array $backoff = [30, 120, 300];
+
     public function __construct(public Order $order, public string $event, public array $context = [])
     {
         $this->afterCommit();

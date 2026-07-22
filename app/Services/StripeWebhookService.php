@@ -49,7 +49,7 @@ class StripeWebhookService
         } catch (Throwable $exception) {
             $this->recordFailure($record, $exception);
             Log::error('Stripe webhook processing failed.', $this->context($event, $object, $exception instanceof StripePaymentVerificationException ? $exception->order : null, $exception->getMessage()) + [
-                'exception' => $exception,
+                'exception_class' => $exception::class,
             ]);
 
             if ($exception instanceof StripePaymentVerificationException) {

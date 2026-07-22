@@ -3,6 +3,7 @@
         <x-admin.page-header eyebrow="Catalogue" title="Collection">
             <x-slot:actions>
                 <x-admin.button variant="outline" :href="route('admin.products.index', ['low_stock' => 1])">Low stock</x-admin.button>
+                <x-admin.button variant="outline" :href="route('admin.product-stock-notifications.index')" icon="bi-bell">Back-in-stock requests</x-admin.button>
                 <x-admin.button :href="route('admin.products.create')">Add piece</x-admin.button>
             </x-slot:actions>
         </x-admin.page-header>

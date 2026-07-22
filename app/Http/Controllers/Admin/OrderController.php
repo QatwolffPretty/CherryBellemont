@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Services\AdminNotificationService;
 use App\Services\OrderDocumentService;
 use App\Services\OrderNotifier;
+use App\Services\ProductStockNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -63,11 +64,12 @@ class OrderController extends Controller
         return $documents->packingSlip($order)->stream('packing-slip-'.($order->order_number ?? $order->number).'.pdf');
     }
 
-    public function update(UpdateOrderFulfilmentRequest $request, Order $order, OrderNotifier $notifier, AdminNotificationService $adminNotifier): RedirectResponse
+    public function update(UpdateOrderFulfilmentRequest $request, Order $order, OrderNotifier $notifier, AdminNotificationService $adminNotifier, ProductStockNotificationService $stockNotifications): RedirectResponse
     {
         $data = $request->validated();
         $statusChanged = false;
-        $order = DB::transaction(function () use ($data, $order, &$statusChanged): Order {
+        $restockedProductIds = [];
+        $order = DB::transaction(function () use ($data, $order, &$statusChanged, &$restockedProductIds): Order {
             $order = Order::lockForUpdate()->findOrFail($order->id);
             $statusChanged = $order->order_status !== $data['order_status'];
             $this->ensureTransition($order, $data['order_status']);
@@ -75,7 +77,11 @@ class OrderController extends Controller
             if ($data['order_status'] === 'cancelled' && ! $order->stock_restored_at) {
                 foreach ($order->items as $item) {
                     if ($item->product_id && ($product = Product::lockForUpdate()->find($item->product_id))) {
+                        $previousStock = (int) $product->stock;
                         $product->increment('stock', $item->quantity);
+                        if ($previousStock === 0) {
+                            $restockedProductIds[] = $product->id;
+                        }
                     }
                 }
                 $data['stock_restored_at'] = now();
@@ -96,6 +102,11 @@ class OrderController extends Controller
         }
         if ($statusChanged && $order->order_status === 'cancelled') {
             $adminNotifier->send('order_cancelled', ['order' => $order]);
+        }
+        foreach (array_unique($restockedProductIds) as $productId) {
+            if ($product = Product::query()->find($productId)) {
+                $stockNotifications->handleStockChange($product, 0);
+            }
         }
 
         return back()->with('success', 'Order fulfilment updated.');

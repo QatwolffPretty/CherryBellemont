@@ -27,9 +27,10 @@ class PaymentReceiptController extends Controller
                 abort_if($order->payment_status === 'paid', 422, 'This order is already paid.');
                 abort_if($order->paymentReceipts()->where('status', 'pending')->exists(), 422, 'A receipt is already awaiting review.');
 
-                $path = $file->store('payment-receipts', 'public');
+                $path = $file->store('payment-receipts', 'local');
                 $receipt = $order->paymentReceipts()->create([
                     'path' => $path,
+                    'storage_disk' => 'local',
                     'original_filename' => basename($file->getClientOriginalName()),
                     'mime_type' => $file->getMimeType(),
                     'file_size' => $file->getSize(),
@@ -41,7 +42,7 @@ class PaymentReceiptController extends Controller
             });
         } catch (Throwable $exception) {
             if ($path) {
-                Storage::disk('public')->delete($path);
+                Storage::disk('local')->delete($path);
             }
 
             throw $exception;

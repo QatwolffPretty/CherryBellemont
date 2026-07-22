@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Services\ProductStockNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -34,10 +35,19 @@ class ProductController extends Controller
 
         return to_route('admin.products.index')->with('success', 'Piece added to the collection.');
     }
-    public function edit(Product $product): View { return view('admin.products.form', compact('product')); }
-    public function update(Request $request, Product $product): RedirectResponse
+    public function edit(Product $product): View
+    {
+        $product->loadCount([
+            'stockNotifications as waiting_stock_notifications_count' => fn ($query) => $query->waiting(),
+            'stockNotifications as notified_stock_notifications_count' => fn ($query) => $query->notified(),
+        ]);
+
+        return view('admin.products.form', compact('product'));
+    }
+    public function update(Request $request, Product $product, ProductStockNotificationService $stockNotifications): RedirectResponse
     {
         $data = $this->validated($request);
+        $previousStock = (int) $product->stock;
 
         if ($request->hasFile('image')) {
             if ($product->image_path) {
@@ -48,6 +58,7 @@ class ProductController extends Controller
         }
 
         $product->update($data);
+        $stockNotifications->handleStockChange($product, $previousStock);
 
         return to_route('admin.products.index')->with('success', 'Piece updated.');
     }

@@ -1,9 +1,50 @@
+@props([
+    'title' => 'Cherry Bellemont',
+    'metaDescription' => null,
+    'metaImage' => null,
+    'structuredData' => null,
+    'robots' => null,
+])
+
+@php
+    $pageTitle = $title ?: config('store.company_name');
+    $description = $metaDescription ?: 'Discover timeless pieces and quiet distinction from Cherry Bellemont.';
+    $isPrivatePage = request()->is(['cart', 'checkout', 'orders*', 'stripe*', 'login', 'register', 'forgot-password', 'reset-password*', 'dashboard', 'profile']);
+    $robots = $robots ?? ($isPrivatePage ? 'noindex, nofollow' : 'index, follow');
+    $canonicalUrl = $isPrivatePage ? null : url()->current();
+    $metaImagePath = is_string($metaImage) ? $metaImage : null;
+    $isAbsoluteMetaImage = $metaImagePath
+        && (str_starts_with($metaImagePath, 'http://') || str_starts_with($metaImagePath, 'https://'));
+    $openGraphImage = $metaImagePath
+        ? ($isAbsoluteMetaImage ? $metaImagePath : asset($metaImagePath))
+        : asset('images/Cherry Red No BG.png');
+    $isHome = request()->routeIs('home');
+    $isCollection = request()->routeIs('collection', 'collection.*', 'products.*');
+    $isAbout = request()->routeIs('about');
+@endphp
+
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $title ?? 'Cherry Bellemont' }}</title>
+    <title>{{ $pageTitle }}</title>
+    <meta name="description" content="{{ $description }}">
+    <meta name="robots" content="{{ $robots }}">
+    @if($canonicalUrl)<link rel="canonical" href="{{ $canonicalUrl }}">@endif
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ config('store.company_name') }}">
+    <meta property="og:title" content="{{ $pageTitle }}">
+    <meta property="og:description" content="{{ $description }}">
+    <meta property="og:image" content="{{ $openGraphImage }}">
+    @if($canonicalUrl)<meta property="og:url" content="{{ $canonicalUrl }}">@endif
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $pageTitle }}">
+    <meta name="twitter:description" content="{{ $description }}">
+    <meta name="twitter:image" content="{{ $openGraphImage }}">
+    @if($structuredData)
+        <script type="application/ld+json">{!! json_encode($structuredData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
+    @endif
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -13,9 +54,9 @@
             <a href="{{ route('home') }}" class="font-display text-xl tracking-[.2em] text-cream sm:text-2xl">CHERRY BELLEMONT</a>
 
             <div class="flex items-center gap-5 text-sm">
-                <a class="nav-link" href="{{ route('home') }}">Home</a>
-                <a class="nav-link" href="{{ route('collection') }}">Collection</a>
-                <a class="nav-link" href="{{ route('about') }}">About</a>
+                <a class="nav-link {{ $isHome ? 'text-gold' : '' }}" href="{{ route('home') }}" @if($isHome) aria-current="page" @endif>Home</a>
+                <a class="nav-link {{ $isCollection ? 'text-gold' : '' }}" href="{{ route('collection') }}" @if($isCollection) aria-current="page" @endif>Collection</a>
+                <a class="nav-link {{ $isAbout ? 'text-gold' : '' }}" href="{{ route('about') }}" @if($isAbout) aria-current="page" @endif>About</a>
 
                 <div class="flex items-center gap-[18px]">
                     <a class="nav-icon relative" href="{{ route('cart.index') }}" aria-label="Shopping Bag" data-bs-toggle="tooltip" data-bs-title="Shopping Bag">
@@ -52,7 +93,7 @@
                     <a class="nav-link" href="{{ route('privacy.policy') }}">Privacy</a>
                     <a class="nav-link" href="{{ route('terms.policy') }}">Terms &amp; Conditions</a>
                 </nav>
-                <x-storefront.social-links centered heading-id="footer-social-links-heading" class="mt-8" />
+                <x-storefront.social-links centered icon-only heading-id="footer-social-links-heading" class="mt-8" />
                 <p class="mt-8">&copy; {{ date('Y') }} Cherry Bellemont <span class="mx-2 text-gold">&mdash;</span> All Rights Reserved</p>
             </div>
         </div>

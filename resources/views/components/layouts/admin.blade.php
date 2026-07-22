@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ?? 'Atelier | Cherry Bellemont' }}</title>
+    <meta name="robots" content="noindex, nofollow">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -21,6 +22,7 @@
             <nav class="mt-10 grid gap-2 text-sm" aria-label="Admin navigation">
                 <a class="admin-nav {{ request()->routeIs('admin.dashboard') ? 'admin-nav-active' : '' }}" href="{{ route('admin.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
                 <a class="admin-nav {{ request()->routeIs('admin.products.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.products.index') }}"><i class="bi bi-box-seam"></i> Products</a>
+                <a class="admin-nav {{ request()->routeIs('admin.product-stock-notifications.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.product-stock-notifications.index') }}"><i class="bi bi-bell"></i> Back-in-Stock</a>
                 <a class="admin-nav {{ request()->routeIs('admin.reviews.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.reviews.index') }}"><i class="bi bi-chat-square-quote"></i> Reviews</a>
                 <a class="admin-nav {{ request()->routeIs('admin.orders.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.orders.index') }}"><i class="bi bi-handbag-fill"></i> Orders</a>
                 <a class="admin-nav {{ request()->routeIs('admin.payment-receipts.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.payment-receipts.index') }}"><i class="bi bi-credit-card"></i> Payment Verification @if($pendingReceiptCount)<span class="ml-auto rounded-full bg-gold px-2 py-0.5 text-xs text-wine">{{ $pendingReceiptCount }}</span>@endif</a>

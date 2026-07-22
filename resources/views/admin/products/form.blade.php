@@ -11,6 +11,13 @@
                 <x-admin.textarea name="description" label="Description" :value="$product->description" class="min-h-32" />
                 <x-admin.form-input name="price" label="Price (RM)" type="number" step="0.01" min="0" :value="$product->price" required />
                 <x-admin.form-input name="stock" label="Available stock" type="number" min="0" :value="$product->stock ?? 0" required />
+                @if($product->exists)
+                    <div class="grid gap-4 border-y border-cream/15 py-5 sm:grid-cols-2">
+                        <p><span class="block text-sm text-cream/60">Waiting for restock</span><strong class="mt-1 block text-2xl text-gold">{{ $product->waiting_stock_notifications_count ?? 0 }}</strong></p>
+                        <p><span class="block text-sm text-cream/60">Previously notified</span><strong class="mt-1 block text-2xl text-gold">{{ $product->notified_stock_notifications_count ?? 0 }}</strong></p>
+                    </div>
+                    <x-admin.button variant="outline" :href="route('admin.product-stock-notifications.index', ['product_id' => $product->id])" icon="bi-bell">View Requests</x-admin.button>
+                @endif
                 <x-admin.select name="status" label="Status">
                     @foreach(['draft', 'active', 'archived'] as $status)
                         <option value="{{ $status }}" @selected(old('status', $product->status ?: 'draft') === $status)>{{ ucfirst($status) }}</option>

@@ -32,6 +32,13 @@ class CouponService
         }
 
         $coupon = $query->first();
+        Log::debug('Coupon lookup completed.', [
+            'normalized_coupon_code' => $code,
+            'coupon_found' => (bool) $coupon,
+            'subtotal_cents' => $subtotalCents,
+            'shipping_cents' => $shippingCents,
+        ]);
+
         if (! $coupon) {
             $this->fail('Coupon does not exist.', $code);
         }
@@ -49,7 +56,7 @@ class CouponService
         $discountCents = min($subtotalCents, max(0, $discountCents));
         $freeShippingDiscountCents = $coupon->free_shipping ? $shippingCents : 0;
 
-        return [
+        $result = [
             'coupon' => $coupon,
             'coupon_code' => $coupon->code,
             'discount_cents' => $discountCents,
@@ -57,6 +64,15 @@ class CouponService
             'free_shipping_discount_cents' => $freeShippingDiscountCents,
             'total_cents' => max(0, $subtotalCents - $discountCents + $shippingCents - $freeShippingDiscountCents),
         ];
+
+        Log::debug('Coupon total calculated.', [
+            'coupon_code' => $coupon->code,
+            'subtotal_cents' => $subtotalCents,
+            'discount_cents' => $result['discount_cents'],
+            'final_total_cents' => $result['total_cents'],
+        ]);
+
+        return $result;
     }
 
     public function recordUsage(Coupon $coupon, Order $order, string $customerEmail, int $discountCents): void

@@ -1,4 +1,9 @@
-<x-layouts.store :title="$product->name.' | Cherry Bellemont'">
+<x-layouts.store
+    :title="$product->name.' | Cherry Bellemont'"
+    :meta-description="\Illuminate\Support\Str::limit(trim(strip_tags((string) $product->description)), 155, '')"
+    :meta-image="$product->image_path ? asset('storage/'.$product->image_path) : null"
+    :structured-data="$productStructuredData"
+>
     <section class="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-2">
         <div class="aspect-[3/4] overflow-hidden border border-gold/20 bg-wine-deep">
             @if($product->image_path)
@@ -17,13 +22,31 @@
                 <a class="text-sm text-cream/70 hover:text-gold" href="#reviews">{{ number_format((float) $reviewStats->average_rating, 1) }} ({{ $reviewStats->review_count }} {{ \Illuminate\Support\Str::plural('Review', $reviewStats->review_count) }})</a>
             </div>
             <p class="mt-8 whitespace-pre-line text-xl leading-relaxed text-cream/85">{{ $product->description }}</p>
-            <form class="mt-10 flex items-center gap-4" method="POST" action="{{ route('cart.store', $product) }}">
-                @csrf
-                <input class="field w-20" type="number" name="quantity" min="1" max="{{ $product->stock }}" value="1" @disabled($product->stock < 1)>
-                <button class="luxury-link" type="submit" @disabled($product->stock < 1)>{{ $product->stock > 0 ? 'Add to bag' : 'Sold out' }}</button>
-            </form>
-            @error('quantity')<p class="mt-3 text-gold">{{ $message }}</p>@enderror
-            <p class="mt-5 text-sm text-cream/55">{{ $product->stock }} currently available.</p>
+            @if($product->stock > 0)
+                <form class="mt-10 flex items-center gap-4" method="POST" action="{{ route('cart.store', $product) }}">
+                    @csrf
+                    <input class="field w-20" type="number" name="quantity" min="1" max="{{ $product->stock }}" value="1">
+                    <button class="luxury-link" type="submit">Add to bag</button>
+                </form>
+                @error('quantity')<p class="mt-3 text-gold">{{ $message }}</p>@enderror
+                <p class="mt-5 text-sm text-cream/55">{{ $product->stock }} currently available.</p>
+            @else
+                <div class="mt-10 border-y border-gold/35 py-7">
+                    <p class="uppercase tracking-[.2em] text-gold">Out of Stock</p>
+                    <h2 class="mt-3 text-2xl">Notify Me When Available</h2>
+                    <p class="mt-3 max-w-xl leading-7 text-cream/75">Enter your email and we’ll let you know when this Cherry Bellemont piece becomes available again.</p>
+                    @if(session('stock_notification_success'))<p class="mt-5 border border-gold/50 p-4 text-gold">{{ session('stock_notification_success') }}</p>@endif
+                    @error('stock_notification')<p class="mt-5 border border-gold/50 p-4 text-gold">{{ $message }}</p>@enderror
+                    <form class="mt-6 grid gap-4 sm:grid-cols-2" method="POST" action="{{ route('product-stock-notifications.store', $product) }}">
+                        @csrf
+                        <input class="field" type="email" name="email" value="{{ old('email') }}" placeholder="Email Address" required>
+                        <input class="field" type="text" name="name" value="{{ old('name') }}" placeholder="Optional Name">
+                        <div class="sm:col-span-2"><button class="luxury-link" type="submit">Notify Me</button></div>
+                        @error('email')<p class="sm:col-span-2 text-gold">{{ $message }}</p>@enderror
+                        @error('name')<p class="sm:col-span-2 text-gold">{{ $message }}</p>@enderror
+                    </form>
+                </div>
+            @endif
 
             @if($reviewContext)
                 <a class="luxury-link mt-8 inline-block self-start" href="{{ route('reviews.create', ['product' => $product, ...request()->only(['order_number', 'guest_access_token', 'customer_email'])]) }}">

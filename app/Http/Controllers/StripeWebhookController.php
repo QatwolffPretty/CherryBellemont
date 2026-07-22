@@ -19,7 +19,9 @@ class StripeWebhookController extends Controller
         try {
             $event = $stripe->constructWebhookEvent($payload, $request->header('Stripe-Signature'));
         } catch (SignatureVerificationException|\UnexpectedValueException|\RuntimeException $exception) {
-            Log::warning('Rejected Stripe webhook with an invalid signature.', ['exception' => $exception]);
+            Log::warning('Rejected Stripe webhook with an invalid signature.', [
+                'exception_class' => $exception::class,
+            ]);
 
             return response()->json(['message' => 'Invalid Stripe webhook signature.'], 400);
         }
@@ -30,7 +32,7 @@ class StripeWebhookController extends Controller
             Log::error('Stripe webhook endpoint failed.', [
                 'stripe_event_id' => $event->id ?? null,
                 'event_type' => $event->type ?? null,
-                'exception' => $exception,
+                'exception_class' => $exception::class,
             ]);
 
             return response()->json(['message' => 'Webhook processing failed.'], 500);

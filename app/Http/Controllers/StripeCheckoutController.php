@@ -77,7 +77,7 @@ class StripeCheckoutController extends Controller
         } catch (Throwable $exception) {
             Log::error('Unable to start Stripe Checkout.', [
                 'order_number' => $order->order_number,
-                'exception' => $exception,
+                'exception_class' => $exception::class,
             ]);
 
             $isRepeatedFailure = filled($order->stripe_failure_reason);
@@ -86,7 +86,7 @@ class StripeCheckoutController extends Controller
             } catch (Throwable $recordException) {
                 Log::error('Unable to record a Stripe Checkout initialization failure.', [
                     'order_number' => $order->order_number,
-                    'exception' => $recordException,
+                    'exception_class' => $recordException::class,
                     ]);
             }
 

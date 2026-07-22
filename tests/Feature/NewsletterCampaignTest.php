@@ -68,6 +68,24 @@ class NewsletterCampaignTest extends TestCase
         });
     }
 
+    public function test_a_queued_campaign_mail_keeps_a_subscriber_snapshot_after_the_subscriber_is_deleted(): void
+    {
+        $campaign = $this->campaign();
+        $subscriber = $this->subscriber('snapshot@example.test', [
+            'name' => 'Snapshot Subscriber',
+            'verification_token' => Str::random(64),
+        ]);
+        $token = $subscriber->verification_token;
+        $serialized = serialize(new NewsletterCampaignMail($campaign, $subscriber));
+
+        $subscriber->delete();
+        $mail = unserialize($serialized, ['allowed_classes' => true]);
+
+        $this->assertInstanceOf(NewsletterCampaignMail::class, $mail);
+        $this->assertStringContainsString('Snapshot Subscriber', $mail->render());
+        $this->assertStringContainsString($token, $mail->render());
+    }
+
     public function test_send_now_creates_one_delivery_per_eligible_active_subscriber_without_duplicates(): void
     {
         Queue::fake();

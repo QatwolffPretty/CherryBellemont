@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Services\ReviewEligibility;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class StorefrontController extends Controller
@@ -70,6 +71,40 @@ class StorefrontController extends Controller
             'reviewStats' => $reviewStats,
             'ratingBreakdown' => $ratingBreakdown,
             'reviewContext' => $reviewContext,
+            'productStructuredData' => $this->productStructuredData($product, $reviewStats),
         ]);
+    }
+
+    private function productStructuredData(Product $product, object $reviewStats): array
+    {
+        $data = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Product',
+            'name' => $product->name,
+            'description' => Str::limit(trim(strip_tags((string) $product->description)), 300, ''),
+            'url' => route('products.show', $product),
+            'offers' => [
+                '@type' => 'Offer',
+                'priceCurrency' => 'MYR',
+                'price' => number_format((float) $product->price, 2, '.', ''),
+                'availability' => $product->stock > 0
+                    ? 'https://schema.org/InStock'
+                    : 'https://schema.org/OutOfStock',
+            ],
+        ];
+
+        if ($product->image_path) {
+            $data['image'] = asset('storage/'.$product->image_path);
+        }
+
+        if ((int) $reviewStats->review_count > 0) {
+            $data['aggregateRating'] = [
+                '@type' => 'AggregateRating',
+                'ratingValue' => number_format((float) $reviewStats->average_rating, 1, '.', ''),
+                'reviewCount' => (int) $reviewStats->review_count,
+            ];
+        }
+
+        return $data;
     }
 }

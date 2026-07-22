@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Http\Middleware\TrustProxies;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +21,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        $trustedProxies = config('proxy.trusted_proxies', []);
+        if ($trustedProxies !== []) {
+            TrustProxies::at($trustedProxies);
+        }
+
+        if ($this->app->isProduction()) {
+            URL::forceScheme('https');
+        }
     }
 }

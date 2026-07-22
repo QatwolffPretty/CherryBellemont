@@ -17,7 +17,10 @@
         <tr>
             <td align="center" style="padding:32px 16px;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:640px;background-color:{{ $brand['white'] }};">
-                    @include('emails.components.header')
+                    @include('emails.components.header', [
+                        'logoPath' => $logoPath ?? null,
+                        'logoWidth' => $logoWidth ?? null,
+                    ])
                     <tr>
                         <td style="padding:40px 36px;">
                             {{ $slot }}

@@ -1,4 +1,8 @@
-@component('emails.layouts.transactional', ['preheader' => $campaign->preview_text ?: $campaign->subject])
+@component('emails.layouts.transactional', [
+    'preheader' => $campaign->preview_text ?: $campaign->subject,
+    'logoPath' => asset('images/Cherry White No BG.png'),
+    'logoWidth' => 58,
+])
     @php($brand = config('store.brand'))
 
     @if($isTest)

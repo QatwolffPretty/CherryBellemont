@@ -172,7 +172,7 @@ class CouponWorkflowTest extends TestCase
         $this->withSession(['cart' => [$product->id => 1]])
             ->post(route('cart.coupon.apply'), ['coupon_code' => '  '.strtolower($coupon->code).'  '])
             ->assertSessionHas('coupon_code', 'APPLYME')
-            ->assertSessionHas('success', 'Coupon applied successfully.');
+            ->assertSessionHas('success', 'Coupon APPLYME applied successfully.');
 
         $this->get(route('cart.index'))
             ->assertOk()
@@ -180,6 +180,89 @@ class CouponWorkflowTest extends TestCase
             ->assertSee('Discount');
 
         $this->delete(route('cart.coupon.remove'))->assertSessionMissing('coupon_code');
+    }
+
+    public function test_welcome_cherries_coupon_is_normalized_displayed_and_persists_from_cart_to_checkout(): void
+    {
+        $coupon = $this->welcomeCoupon();
+        $product = $this->product(['price' => '350.00']);
+        $method = $this->deliveryMethod();
+
+        $this->withSession(['cart' => [$product->id => 1]])
+            ->post(route('cart.coupon.apply'), ['coupon_code' => '  welcomecherries10  '])
+            ->assertRedirect()
+            ->assertSessionHas('coupon_code', 'WELCOMECHERRIES10')
+            ->assertSessionHas('success', 'Coupon WELCOMECHERRIES10 applied successfully.');
+
+        $this->get(route('cart.index'))
+            ->assertOk()
+            ->assertSee($coupon->code)
+            ->assertSee('Discount')
+            ->assertSee('RM 10.00');
+
+        $this->get(route('checkout.create'))
+            ->assertOk()
+            ->assertSee($coupon->code)
+            ->assertSee('Discount')
+            ->assertSee('RM 340.00');
+    }
+
+    public function test_invalid_and_inactive_coupon_application_show_clear_errors(): void
+    {
+        $product = $this->product();
+
+        $this->withSession(['cart' => [$product->id => 1]])
+            ->post(route('cart.coupon.apply'), ['coupon_code' => 'not-a-real-coupon'])
+            ->assertSessionHasErrors(['coupon' => 'Coupon does not exist.']);
+
+        $inactive = $this->coupon(['code' => 'INACTIVE', 'is_active' => false]);
+        $this->withSession(['cart' => [$product->id => 1]])
+            ->post(route('cart.coupon.apply'), ['coupon_code' => $inactive->code])
+            ->assertSessionHasErrors(['coupon' => 'Coupon is inactive.']);
+    }
+
+    public function test_welcome_cherries_discount_is_revalidated_for_duitnow_checkout(): void
+    {
+        Notification::fake();
+        $coupon = $this->welcomeCoupon();
+        $product = $this->product(['price' => '350.00', 'stock' => 2]);
+        $method = $this->deliveryMethod(['is_pickup' => true]);
+
+        $this->withSession(['cart' => [$product->id => 1], 'coupon_code' => strtolower($coupon->code)])
+            ->post(route('checkout.store'), array_merge($this->checkoutData($method), [
+                'discount_amount' => 999999,
+                'total' => 0,
+            ]))
+            ->assertRedirect();
+
+        $order = Order::query()->firstOrFail();
+        $this->assertSame($coupon->id, $order->coupon_id);
+        $this->assertSame('WELCOMECHERRIES10', $order->coupon_code);
+        $this->assertSame('10.00', $order->discount_amount);
+        $this->assertSame('340.00', $order->total);
+    }
+
+    public function test_welcome_cherries_discount_is_included_in_stripe_total(): void
+    {
+        Notification::fake();
+        $coupon = $this->welcomeCoupon();
+        $product = $this->product(['price' => '350.00', 'stock' => 2]);
+        $method = $this->deliveryMethod(['is_pickup' => true]);
+
+        $stripe = Mockery::mock(StripeCheckoutService::class);
+        $stripe->shouldReceive('beginCheckout')->once()->with(Mockery::on(function (Order $order): bool {
+            $this->assertSame('10.00', $order->discount_amount);
+            $this->assertSame('340.00', $order->total);
+
+            return true;
+        }))->andReturn((object) ['id' => 'cs_welcome', 'url' => 'https://checkout.stripe.test/cs_welcome']);
+        $this->app->instance(StripeCheckoutService::class, $stripe);
+
+        $this->withSession(['cart' => [$product->id => 1], 'coupon_code' => $coupon->code])
+            ->post(route('checkout.store'), array_merge($this->checkoutData($method), ['payment_method' => 'stripe']))
+            ->assertRedirect('https://checkout.stripe.test/cs_welcome');
+
+        $this->assertSame('340.00', Order::query()->firstOrFail()->total);
     }
 
     public function test_coupon_application_returns_a_clear_message_when_the_coupon_is_not_yet_active(): void
@@ -223,6 +306,22 @@ class CouponWorkflowTest extends TestCase
             'is_active' => true,
             'free_shipping' => false,
         ], $attributes));
+    }
+
+    private function welcomeCoupon(): Coupon
+    {
+        return Coupon::create([
+            'code' => 'WELCOMECHERRIES10',
+            'name' => 'Welcome to Cherry Bellemont',
+            'type' => 'fixed_amount',
+            'value' => '10.00',
+            'minimum_order_amount' => '100.00',
+            'usage_limit_per_email' => 1,
+            'is_active' => true,
+            'starts_at' => now()->subDay(),
+            'expires_at' => now()->addDay(),
+            'free_shipping' => false,
+        ]);
     }
 
     private function product(array $attributes = []): Product

@@ -79,26 +79,51 @@ class CartController extends Controller
     {
         $data = $request->validate(['coupon_code' => ['required', 'string', 'max:64']]);
         $lines = $cart->lines();
+        $normalizedCode = $coupons->normalize($data['coupon_code']);
+        $subtotalCents = $cart->totals($lines)['subtotal'];
+
+        Log::debug('Coupon application requested.', [
+            'submitted_coupon_code' => $data['coupon_code'],
+            'normalized_coupon_code' => $normalizedCode,
+            'cart_subtotal_cents' => $subtotalCents,
+            'session_coupon_code' => $cart->couponCode(),
+        ]);
 
         if ($lines->isEmpty()) {
             return back()->withErrors(['coupon' => 'Add a piece to your bag before applying a coupon.']);
         }
 
         try {
-            $summary = $coupons->calculate($data['coupon_code'], $cart->totals($lines)['subtotal'], 0);
+            $summary = $coupons->calculate($normalizedCode, $subtotalCents, 0);
             $cart->applyCoupon($summary['coupon_code']);
+
+            Log::debug('Coupon applied to cart.', [
+                'normalized_coupon_code' => $normalizedCode,
+                'coupon_found' => true,
+                'cart_subtotal_cents' => $subtotalCents,
+                'discount_cents' => $summary['discount_cents'],
+                'final_total_cents' => $summary['total_cents'],
+                'session_coupon_code' => $cart->couponCode(),
+            ]);
         } catch (ValidationException $exception) {
+            Log::info('Coupon application was rejected.', [
+                'normalized_coupon_code' => $normalizedCode,
+                'cart_subtotal_cents' => $subtotalCents,
+                'session_coupon_code' => $cart->couponCode(),
+                'reason' => $this->couponMessage($exception),
+            ]);
+
             return back()->withErrors($exception->errors())->withInput();
         } catch (\Throwable $exception) {
             Log::error('Coupon application failed unexpectedly.', [
-                'coupon_code' => $coupons->normalize($data['coupon_code']),
-                'exception' => $exception,
+                'coupon_code' => $normalizedCode,
+                'exception_class' => $exception::class,
             ]);
 
             return back()->withErrors(['coupon' => 'Coupon could not be applied. Please try again.'])->withInput();
         }
 
-        return back()->with('success', 'Coupon applied successfully.');
+        return back()->with('success', 'Coupon '.$summary['coupon_code'].' applied successfully.');
     }
 
     public function removeCoupon(Cart $cart): RedirectResponse

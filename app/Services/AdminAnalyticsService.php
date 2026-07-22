@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Coupon;
 use App\Models\NewsletterSubscriber;
 use App\Models\NewsletterCampaign;
+use App\Models\ProductStockNotification;
 use App\Models\Order;
 use App\Models\PaymentReceipt;
 use App\Models\Product;
@@ -111,6 +112,9 @@ class AdminAnalyticsService
             ['label' => 'Orders Processing', 'value' => Order::query()->where('order_status', 'processing')->count(), 'href' => route('admin.orders.index', ['order_status' => 'processing'])],
             ['label' => 'Orders Shipped', 'value' => Order::query()->where('order_status', 'shipped')->count(), 'href' => route('admin.orders.index', ['order_status' => 'shipped'])],
             ['label' => 'Low Stock Products', 'value' => Product::query()->where('stock', '<=', $threshold)->count(), 'subtitle' => $threshold.' or fewer remaining', 'href' => route('admin.products.index', ['low_stock' => 1])],
+            ['label' => 'Back-in-Stock Requests', 'value' => ProductStockNotification::query()->waiting()->count(), 'href' => route('admin.product-stock-notifications.index', ['status' => 'waiting'])],
+            ['label' => 'Products With Waiting Customers', 'value' => ProductStockNotification::query()->waiting()->distinct('product_id')->count('product_id'), 'href' => route('admin.product-stock-notifications.index', ['status' => 'waiting'])],
+            ['label' => 'Most Requested Out-of-Stock Product', 'value' => $this->mostRequestedOutOfStockProduct(), 'href' => route('admin.product-stock-notifications.index', ['status' => 'waiting'])],
             ['label' => 'Active Coupons', 'value' => $this->activeCoupons(), 'href' => route('admin.coupons.index', ['status' => 'active'])],
             ['label' => 'Newsletter Subscribers', 'value' => NewsletterSubscriber::query()->subscribed()->count(), 'href' => route('admin.newsletter.index', ['status' => 'subscribed'])],
             ['label' => 'Draft Campaigns', 'value' => NewsletterCampaign::query()->drafts()->count(), 'href' => route('admin.newsletter.campaigns.index', ['status' => 'draft'])],
@@ -340,6 +344,20 @@ class AdminAnalyticsService
     private function latestCampaignName(): string
     {
         return NewsletterCampaign::query()->latest()->value('name') ?: 'No campaigns';
+    }
+
+    private function mostRequestedOutOfStockProduct(): string
+    {
+        $row = ProductStockNotification::query()
+            ->join('products', 'products.id', '=', 'product_stock_notifications.product_id')
+            ->where('product_stock_notifications.status', ProductStockNotification::STATUS_WAITING)
+            ->where('products.stock', '<=', 0)
+            ->selectRaw('product_stock_notifications.product_id, COUNT(*) as request_count')
+            ->groupBy('product_stock_notifications.product_id')
+            ->orderByDesc('request_count')
+            ->first();
+
+        return $row ? Product::query()->whereKey($row->product_id)->value('name') ?: 'Unavailable product' : 'No requests';
     }
 
     private function lowStockThreshold(): int

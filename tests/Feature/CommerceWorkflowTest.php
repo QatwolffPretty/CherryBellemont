@@ -144,7 +144,7 @@ class CommerceWorkflowTest extends TestCase
 
     public function test_receipt_upload_rejection_replacement_and_approval_keep_payment_and_stock_consistent(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
         Notification::fake();
         $order = $this->order();
         $product = $this->product(['stock' => 3]);
@@ -153,7 +153,9 @@ class CommerceWorkflowTest extends TestCase
         $this->post(route('orders.payment-receipts.store', ['order' => $order->number, 'token' => $order->guest_access_token]), ['receipt' => UploadedFile::fake()->image('receipt.jpg')])->assertRedirect();
         $receipt = PaymentReceipt::query()->firstOrFail();
         $this->assertSame('pending', $receipt->status);
-        Storage::disk('public')->assertExists($receipt->path);
+        $this->assertSame('local', $receipt->storage_disk);
+        Storage::disk('local')->assertExists($receipt->path);
+        Storage::disk('public')->assertMissing($receipt->path);
         Notification::assertSentOnDemand(OrderCustomerNotification::class, fn (OrderCustomerNotification $notification) => $notification->event === 'receipt_submitted');
         Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'new_duitnow_receipt');
 

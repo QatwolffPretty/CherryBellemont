@@ -9,6 +9,14 @@
                     <x-admin.button variant="outline" icon="bi-file-earmark-pdf" :href="route('admin.orders.invoice', $order)">Download Invoice</x-admin.button>
                 @endif
                 <x-admin.button variant="outline" icon="bi-printer" :href="route('admin.orders.packing-slip', $order)" target="_blank">Print Packing Slip</x-admin.button>
+                @if($order->latestShipment?->label_path)
+                    <x-admin.button variant="outline" icon="bi-file-earmark-arrow-down" :href="route('admin.shipments.label.download', $order->latestShipment)">Download Shipment Label</x-admin.button>
+                @endif
+                @if($order->payment_status === 'paid' && $order->order_status === 'packed' && ! $order->latestShipment?->shipment_status)
+                    <x-admin.button icon="bi-truck" :href="route('admin.orders.shipments.create', $order)">Create Shipment</x-admin.button>
+                @elseif($order->latestShipment)
+                    <x-admin.button variant="outline" icon="bi-truck" :href="route('admin.shipments.show', $order->latestShipment)">View Shipment</x-admin.button>
+                @endif
             </x-slot:actions>
         </x-admin.page-header>
 
@@ -61,6 +69,23 @@
                     @empty
                         <p class="mt-4 text-sm text-cream/65">No return request has been submitted.</p>
                     @endforelse
+                </x-admin.card>
+
+                <x-admin.card title="Shipment">
+                    @if($order->latestShipment)
+                        <div class="mt-4 grid gap-3 md:grid-cols-2">
+                            <p><span class="text-cream/60">Shipment</span><br>{{ $order->latestShipment->shipment_number }}</p>
+                            <p><span class="text-cream/60">Status</span><br><x-admin.badge :status="$order->latestShipment->shipment_status" /></p>
+                            <p><span class="text-cream/60">Courier</span><br>{{ $order->latestShipment->courier_name_snapshot ?: '—' }}</p>
+                            <p><span class="text-cream/60">Tracking</span><br>{{ $order->latestShipment->tracking_number ?: '—' }}</p>
+                        </div>
+                        <x-admin.button class="mt-5" variant="outline" :href="route('admin.shipments.show', $order->latestShipment)">Manage Shipment</x-admin.button>
+                    @else
+                        <p class="mt-4 text-cream/65">No shipment has been created.</p>
+                        @if($order->payment_status === 'paid' && $order->order_status === 'packed')
+                            <x-admin.button class="mt-5" :href="route('admin.orders.shipments.create', $order)" icon="bi-truck">Create Shipment</x-admin.button>
+                        @endif
+                    @endif
                 </x-admin.card>
             </div>
 

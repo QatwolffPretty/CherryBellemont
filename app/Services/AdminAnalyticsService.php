@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\Review;
 use App\Models\Refund;
 use App\Models\ReturnRequest;
+use App\Models\Shipment;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -115,6 +116,12 @@ class AdminAnalyticsService
             ['label' => 'Pending DuitNow Receipts', 'value' => $this->pendingDuitNowReceipts(), 'href' => route('admin.payment-receipts.index', ['status' => 'pending']), 'accent' => true],
             ['label' => 'Orders Processing', 'value' => Order::query()->where('order_status', 'processing')->count(), 'href' => route('admin.orders.index', ['order_status' => 'processing'])],
             ['label' => 'Orders Shipped', 'value' => Order::query()->where('order_status', 'shipped')->count(), 'href' => route('admin.orders.index', ['order_status' => 'shipped'])],
+            ['label' => 'Ready to Ship', 'value' => Shipment::query()->where('shipment_status', 'ready')->count(), 'href' => route('admin.shipments.index', ['status' => 'ready'])],
+            ['label' => 'Shipped Today', 'value' => Shipment::query()->whereDate('shipped_at', $today->toDateString())->count(), 'href' => route('admin.shipments.index', ['status' => 'shipped'])],
+            ['label' => 'In Transit', 'value' => Shipment::query()->where('shipment_status', 'in_transit')->count(), 'href' => route('admin.shipments.index', ['status' => 'in_transit'])],
+            ['label' => 'Out for Delivery', 'value' => Shipment::query()->where('shipment_status', 'out_for_delivery')->count(), 'href' => route('admin.shipments.index', ['status' => 'out_for_delivery'])],
+            ['label' => 'Delivery Failed', 'value' => Shipment::query()->where('shipment_status', 'delivery_failed')->count(), 'href' => route('admin.shipments.index', ['status' => 'delivery_failed'])],
+            ['label' => 'Delivered This Month', 'value' => Shipment::query()->whereBetween('delivered_at', [$monthStart, $today->endOfDay()])->count(), 'href' => route('admin.shipments.index', ['status' => 'delivered'])],
             ['label' => 'Low Stock Products', 'value' => Product::query()->where('stock', '<=', $threshold)->count(), 'subtitle' => $threshold.' or fewer remaining', 'href' => route('admin.products.index', ['low_stock' => 1])],
             ['label' => 'Back-in-Stock Requests', 'value' => ProductStockNotification::query()->waiting()->count(), 'href' => route('admin.product-stock-notifications.index', ['status' => 'waiting'])],
             ['label' => 'Products With Waiting Customers', 'value' => ProductStockNotification::query()->waiting()->distinct('product_id')->count('product_id'), 'href' => route('admin.product-stock-notifications.index', ['status' => 'waiting'])],

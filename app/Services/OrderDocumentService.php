@@ -115,6 +115,7 @@ class OrderDocumentService
             'shippingZone',
             'coupon',
             'paymentReceipts.reviewer',
+            'latestShipment',
         ]);
     }
 

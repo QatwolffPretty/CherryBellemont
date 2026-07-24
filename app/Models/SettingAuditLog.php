@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SettingAuditLog extends Model
 {
-    public const UPDATED_AT = null;
+    /** The existing MySQL table uses Laravel's plural table name. */
+    protected $table = 'settings_audit_logs';
+
+    /** Audit records contain an explicit created_at column but no updated_at. */
+    public $timestamps = false;
+
     protected $fillable = ['setting_id', 'group', 'key', 'old_value', 'new_value', 'changed_by', 'ip_hash', 'created_at'];
     protected $casts = ['created_at' => 'datetime'];
 

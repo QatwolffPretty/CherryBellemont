@@ -2,6 +2,9 @@
     @php
         $chartPayload = $report['charts'];
         $exportUrl = fn (string $name) => route('admin.reports.export', array_merge(['report' => $name], $filters));
+        $averageShipmentDelivery = $report['shipments']['average_delivery_hours'] === null
+            ? 'Not enough data'
+            : $report['shipments']['average_delivery_hours'].' hours';
     @endphp
 
     <x-admin.section width="7xl">
@@ -195,6 +198,29 @@
             </div>
             <div class="mt-6 flex justify-end"><x-admin.button variant="outline" :href="$exportUrl('returns')" icon="bi-download">Export returns CSV</x-admin.button></div>
             <p class="mt-4 text-sm text-cream/60">Net order revenue subtracts successful refunds confirmed in the selected period. Shipping and gift wrapping refunds are excluded unless an administrator explicitly recorded them.</p>
+        </x-admin.card>
+
+        <x-admin.card title="Shipments" class="mt-8">
+            <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <x-admin.stats-card label="Outbound shipments" :value="$report['shipments']['total']" />
+                <x-admin.stats-card label="Shipped" :value="$report['shipments']['shipped']" />
+                <x-admin.stats-card label="In transit" :value="$report['shipments']['in_transit']" />
+                <x-admin.stats-card label="Out for delivery" :value="$report['shipments']['out_for_delivery']" />
+                <x-admin.stats-card label="Delivered" :value="$report['shipments']['delivered']" />
+                <x-admin.stats-card label="Delivery failed" :value="$report['shipments']['delivery_failed']" />
+                <x-admin.stats-card label="Returned" :value="$report['shipments']['returned']" />
+                <x-admin.stats-card label="Average delivery time" :value="$averageShipmentDelivery" />
+            </div>
+            <x-admin.table class="mt-6">
+                <x-slot:head><tr><th>Courier</th><th>Shipments</th><th>Delivered</th><th>Failed</th></tr></x-slot:head>
+                @forelse($report['shipments']['by_courier'] as $courier)
+                    <tr><td>{{ $courier['courier'] }}</td><td>{{ $courier['shipments'] }}</td><td>{{ $courier['delivered'] }}</td><td>{{ $courier['failed'] }}</td></tr>
+                @empty
+                    <tr><td colspan="4" class="text-cream/60">No shipment data in this period.</td></tr>
+                @endforelse
+            </x-admin.table>
+            <div class="mt-6 flex justify-end"><x-admin.button variant="outline" :href="$exportUrl('shipments')" icon="bi-download">Export shipments CSV</x-admin.button></div>
+            <p class="mt-4 text-sm text-cream/60">Average delivery time is shown only when both shipped and delivered timestamps exist.</p>
         </x-admin.card>
 
         <x-admin.card title="Top customers by paid spend" class="mt-8">

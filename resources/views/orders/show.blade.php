@@ -17,6 +17,7 @@
             ['Shipped', $order->shipped_at],
             ['Delivered', $order->delivered_at],
         ];
+        $shipment = $order->latestShipment;
     @endphp
 
     <section class="mx-auto max-w-6xl px-6 py-16">
@@ -30,6 +31,15 @@
                     <h2 class="text-2xl">Customer information</h2>
                     <p class="mt-4">{{ $order->customer_name }}<br>{{ $order->customer_email }}<br>{{ $order->customer_phone }}</p>
                 </section>
+
+                @if($shipment)
+                    <section class="border border-cream/15 p-6">
+                        <div class="flex flex-wrap items-center justify-between gap-4"><div><h2 class="text-2xl">Shipment tracking</h2><p class="mt-2 text-sm text-cream/65">{{ $shipment->courier_name_snapshot ?: 'Courier details pending' }}@if($shipment->service_name) · {{ $shipment->service_name }}@endif</p></div>@if(isset($token) && $token)<a class="luxury-link" href="{{ route('shipments.guest.track', ['order' => $order->order_number ?? $order->number, 'token' => $token]) }}">View Tracking</a>@endif</div>
+                        <div class="mt-5 grid gap-3 md:grid-cols-2"><p>Tracking: <span class="text-gold">{{ $shipment->tracking_number ?: 'To be confirmed' }}</span></p><p>Estimated delivery: <span class="text-gold">{{ $shipment->estimated_delivery_at?->format('d M Y') ?: 'To be confirmed' }}</span></p></div>
+                        @if($shipment->tracking_url)<a class="luxury-link mt-5 inline-block" href="{{ $shipment->tracking_url }}" target="_blank" rel="noopener noreferrer">Track with Courier</a>@endif
+                        <ol class="mt-6 space-y-3 border-l border-gold/50 pl-5">@foreach($shipment->events as $event)<li><span class="text-gold">{{ $event->title }}</span><span class="ml-2 text-sm text-cream/60">{{ $event->event_time?->format('d M Y H:i') }}</span>@if($event->location)<span class="ml-2 text-sm text-cream/60">· {{ $event->location }}</span>@endif</li>@endforeach</ol>
+                    </section>
+                @endif
 
                 <section class="border border-cream/15 p-6">
                     <h2 class="text-2xl">Order items</h2>
@@ -105,6 +115,7 @@
                 <p>Shipping fee: RM {{ number_format($order->shipping_fee, 2) }}</p>
                 <p>Courier: {{ $order->courier_name ?: 'Awaiting dispatch' }}</p>
                 <p>Tracking: {{ $order->tracking_number ?: '—' }}</p>
+                @if($order->tracking_url)<a class="luxury-link mt-2 inline-block" href="{{ $order->tracking_url }}" target="_blank" rel="noopener noreferrer">Track Shipment</a>@endif
                 @if($order->payment_provider === 'stripe')
                     <p class="mt-5"><span class="text-cream/60">Card Payment</span><br><span class="capitalize text-gold">{{ $order->stripe_payment_status ?: 'awaiting payment' }}</span></p>
                 @endif

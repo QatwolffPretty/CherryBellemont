@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ReportsController extends Controller
 {
     /** @var array<int, string> */
-    private const EXPORTS = ['sales', 'orders', 'products', 'payments', 'customers', 'coupons', 'inventory', 'newsletter', 'returns'];
+    private const EXPORTS = ['sales', 'orders', 'products', 'payments', 'customers', 'coupons', 'inventory', 'newsletter', 'returns', 'shipments'];
 
     public function index(AdminReportsRequest $request, AdminReportsService $reports): View
     {

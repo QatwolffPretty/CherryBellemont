@@ -20,7 +20,7 @@ class OrderController extends Controller
     {
         $this->authorizeOrder($request, $order);
 
-        $order->load('items.product', 'items.review', 'paymentReceipts', 'returnRequests.refunds');
+        $order->load('items.product', 'items.review', 'paymentReceipts', 'returnRequests.refunds', 'latestShipment.courier', 'latestShipment.events');
 
         return view('orders.show', ['order' => $order, 'canRequestReturn' => $returns->canRequest($order)]);
     }
@@ -36,7 +36,7 @@ class OrderController extends Controller
     {
         $this->authorizeGuest($order, $token);
 
-        $order->load('items.product', 'items.review', 'paymentReceipts', 'returnRequests.refunds');
+        $order->load('items.product', 'items.review', 'paymentReceipts', 'returnRequests.refunds', 'latestShipment.courier', 'latestShipment.events');
 
         return view('orders.show', ['order' => $order, 'token' => $token, 'canRequestReturn' => $returns->canRequest($order)]);
     }

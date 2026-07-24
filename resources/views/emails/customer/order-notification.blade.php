@@ -13,6 +13,12 @@
             'cancelled' => 'Your order has been cancelled',
             default => 'Order update',
         },
+        'shipment_updated' => match ($context['shipment_status'] ?? null) {
+            'out_for_delivery' => 'Your order is out for delivery',
+            'delivery_failed' => 'Delivery update required',
+            'returned' => 'Shipment returned to sender',
+            default => 'Shipment update',
+        },
         default => 'Order update',
     };
     $status = match ($event) {
@@ -20,11 +26,13 @@
         'receipt_rejected' => 'Payment pending',
         'receipt_submitted' => 'Receipt pending review',
         'status_updated' => 'Order '.ucfirst($order->order_status),
+        'shipment_updated' => 'Shipment '.str($context['shipment_status'] ?? 'updated')->replace('_', ' ')->title(),
         default => 'Payment '.ucfirst($order->payment_status),
     };
     $statusTone = match ($event) {
         'payment_approved' => 'success',
         'status_updated' => in_array($order->order_status, ['shipped', 'delivered'], true) ? 'shipped' : 'pending',
+        'shipment_updated' => in_array($context['shipment_status'] ?? null, ['out_for_delivery'], true) ? 'shipped' : 'pending',
         default => 'pending',
     };
 @endphp
@@ -55,6 +63,13 @@
         <p style="margin:0;color:{{ $brand['muted_burgundy'] }};font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.7;">Your order is now {{ ucfirst($order->order_status) }}.</p>
         @if($order->order_status === 'shipped')
             <p style="margin:14px 0 0;color:{{ $brand['muted_burgundy'] }};font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.7;">Courier: {{ $order->courier_name ?: 'To be confirmed' }}. Tracking: {{ $order->tracking_number ?: 'To be confirmed' }}. Shipped on {{ optional($order->shipped_at)->format('d M Y') ?: 'To be confirmed' }}. Delivery method: {{ $order->shipping_method_name ?: 'To be confirmed' }}.</p>
+        @endif
+    @elseif($event === 'shipment_updated')
+        <p style="margin:0;color:{{ $brand['muted_burgundy'] }};font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.7;">Your shipment is {{ str($context['shipment_status'] ?? 'updated')->replace('_', ' ') }}. Courier: {{ $order->courier_name ?: 'To be confirmed' }}. Tracking: {{ $order->tracking_number ?: 'To be confirmed' }}@if($context['estimated_delivery_at']) · Estimated delivery: {{ $context['estimated_delivery_at'] }}@endif.</p>
+        @if(($context['shipment_status'] ?? null) === 'delivery_failed')
+            <p style="margin:14px 0 0;color:{{ $brand['muted_burgundy'] }};font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.7;">Please check your secure order page and contact support if you need assistance.</p>
+        @elseif(($context['shipment_status'] ?? null) === 'returned')
+            <p style="margin:14px 0 0;color:{{ $brand['muted_burgundy'] }};font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.7;">Your shipment has been returned to sender. Our client care team can help with the next steps.</p>
         @endif
         @if($order->order_status === 'packed')
             <p style="margin:14px 0 0;color:{{ $brand['muted_burgundy'] }};font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.7;">Shipment preparation is complete. Delivery method: {{ $order->shipping_method_name ?: 'To be confirmed' }}.</p>
@@ -92,7 +107,7 @@
         @component('emails.components.primary-button', ['url' => $secureUrl])
             View your secure order
         @endcomponent
-        @if($event === 'status_updated' && $order->order_status === 'shipped' && ! empty($context['tracking_url']))
+        @if(in_array($event, ['status_updated', 'shipment_updated'], true) && (($event === 'shipment_updated') || $order->order_status === 'shipped') && ! empty($context['tracking_url']))
             @component('emails.components.secondary-button', ['url' => $context['tracking_url']])
                 Track Shipment
             @endcomponent

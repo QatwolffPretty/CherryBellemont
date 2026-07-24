@@ -24,6 +24,8 @@
                     <p class="mb-6 text-sm text-cream/70">Currency remains MYR for current checkout. Historical order totals are never converted.</p>
                 @elseif(str_contains($section['groups'], 'gift'))
                     <p class="mb-6 text-sm text-cream/70">The configured gift price applies only to future checkouts. Existing orders retain their stored wrapping fee.</p>
+                @elseif(str_contains($section['groups'], 'shipment'))
+                    <p class="mb-6 text-sm text-cream/70">Courier API credentials must remain in the server environment or secret manager. Manual shipment tracking does not require any courier credentials.</p>
                 @endif
                 <form method="POST" action="{{ route('admin.settings.update') }}" class="grid gap-5 md:grid-cols-2">
                     @csrf @method('PATCH')
@@ -42,6 +44,8 @@
                             @elseif($definition['type'] === 'image')
                                 @if($value)<p class="mb-2 text-sm text-cream/70">Current file: {{ basename((string) $value) }}</p>@endif
                                 <p class="admin-field flex min-h-11 items-center text-sm text-cream/60">Use the secure media uploader below to replace this file.</p>
+                            @elseif($key === 'shipment.default_courier_id')
+                                <select id="setting-{{ str_replace('.', '-', $key) }}" class="admin-field" name="settings[{{ $key }}]"><option value="0">No default courier</option>@foreach($shipmentCouriers as $courier)<option value="{{ $courier->id }}" @selected((int) $value === $courier->id)>{{ $courier->name }}</option>@endforeach</select>
                             @else
                                 <input id="setting-{{ str_replace('.', '-', $key) }}" class="admin-field" name="settings[{{ $key }}]" type="{{ $definition['type'] === 'decimal' ? 'number' : ($definition['type'] === 'email' ? 'email' : ($definition['type'] === 'url' ? 'url' : ($definition['type'] === 'integer' ? 'number' : 'text'))) }}" @if($definition['type'] === 'decimal') step="0.01" @elseif($definition['type'] === 'integer') step="1" @endif value="{{ $value }}">
                             @endif

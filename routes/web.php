@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
+use App\Http\Controllers\Admin\CourierController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DeliveryMethodController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Admin\ReportsController as AdminReportsController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Admin\ReturnRequestController as AdminReturnRequestController;
 use App\Http\Controllers\Admin\ShippingZoneController;
+use App\Http\Controllers\Admin\ShipmentController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
@@ -27,6 +29,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ReturnRequestController;
 use App\Http\Controllers\ShippingQuoteController;
+use App\Http\Controllers\ShipmentTrackingController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\StorefrontController;
 use App\Http\Controllers\StripeCheckoutController;
@@ -70,6 +73,7 @@ Route::get('/orders/{order:number}/access/{token}', [OrderController::class, 'gu
 Route::get('/orders/{order:number}/access/{token}/confirmation', [OrderController::class, 'guestConfirmation'])->name('orders.guest.confirmation');
 Route::get('/orders/{order:number}/access/{token}/duitnow', [OrderController::class, 'guestDuitNowInstructions'])->name('orders.guest.duitnow');
 Route::get('/orders/{order:number}/access/{token}/invoice', [OrderController::class, 'guestInvoice'])->name('orders.guest.invoice');
+Route::get('/orders/{order:number}/access/{token}/tracking', ShipmentTrackingController::class)->middleware('throttle:30,1')->name('shipments.guest.track');
 Route::get('/orders/{order:number}/access/{token}/returns/create', [ReturnRequestController::class, 'guestCreate'])->name('returns.guest.create');
 Route::post('/orders/{order:number}/access/{token}/returns', [ReturnRequestController::class, 'guestStore'])->middleware('throttle:4,1')->name('returns.guest.store');
 Route::get('/orders/{order:number}/access/{token}/returns/{returnRequest}', [ReturnRequestController::class, 'guestShow'])->name('returns.guest.show');
@@ -135,8 +139,16 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->as('admin.')->group(funct
     Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
     Route::get('orders/{order}/invoice', [AdminOrderController::class, 'invoice'])->name('orders.invoice');
     Route::get('orders/{order}/packing-slip', [AdminOrderController::class, 'packingSlip'])->name('orders.packing-slip');
+    Route::get('orders/{order}/shipments/create', [ShipmentController::class, 'create'])->name('orders.shipments.create');
+    Route::post('orders/{order}/shipments', [ShipmentController::class, 'store'])->name('orders.shipments.store');
     Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
     Route::patch('orders/{order}', [AdminOrderController::class, 'update'])->name('orders.update');
+    Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
+    Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
+    Route::post('shipments/{shipment}/ship', [ShipmentController::class, 'ship'])->name('shipments.ship');
+    Route::post('shipments/{shipment}/events', [ShipmentController::class, 'storeEvent'])->name('shipments.events.store');
+    Route::get('shipments/{shipment}/label', [ShipmentController::class, 'downloadLabel'])->name('shipments.label.download');
+    Route::resource('couriers', CourierController::class)->except(['show', 'destroy']);
     Route::get('returns', [AdminReturnRequestController::class, 'index'])->name('returns.index');
     Route::get('returns/{return}', [AdminReturnRequestController::class, 'show'])->name('returns.show');
     Route::patch('returns/{return}/review', [AdminReturnRequestController::class, 'beginReview'])->name('returns.review');

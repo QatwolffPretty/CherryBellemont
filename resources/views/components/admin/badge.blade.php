@@ -4,8 +4,8 @@
     $normalized = strtolower((string) ($status ?? ''));
     $tone ??= match ($normalized) {
         'paid', 'approved', 'active', 'delivered', 'featured', 'in_stock' => 'positive',
-        'processing', 'packed', 'shipped', 'payment_review', 'low_stock' => 'warning',
-        'failed', 'rejected', 'cancelled', 'archived', 'out_of_stock' => 'negative',
+        'processing', 'packed', 'shipped', 'in_transit', 'out_for_delivery', 'ready', 'payment_review', 'low_stock' => 'warning',
+        'failed', 'rejected', 'cancelled', 'archived', 'out_of_stock', 'delivery_failed', 'returned' => 'negative',
         default => 'pending',
     };
     $display = $label ?? str($normalized ?: 'pending')->replace('_', ' ')->title();

@@ -19,4 +19,6 @@ class User extends Authenticatable
     public function processedRefunds(): HasMany { return $this->hasMany(Refund::class, 'processed_by'); }
     public function updatedSettings(): HasMany { return $this->hasMany(Setting::class, 'updated_by'); }
     public function settingsAuditLogs(): HasMany { return $this->hasMany(SettingAuditLog::class, 'changed_by'); }
+    public function createdShipments(): HasMany { return $this->hasMany(Shipment::class, 'created_by'); }
+    public function shipmentAuditLogs(): HasMany { return $this->hasMany(ShipmentAuditLog::class, 'admin_id'); }
 }

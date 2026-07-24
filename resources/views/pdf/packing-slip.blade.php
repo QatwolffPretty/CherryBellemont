@@ -56,7 +56,7 @@
         <table class="address-grid"><tr>
             <td>
                 <p class="section-title">Courier & tracking</p>
-                <p style="margin:0;">Courier: {{ $order->courier_name ?: 'Not assigned' }}<br>Tracking: {{ $order->tracking_number ?: 'Not assigned' }}</p>
+                <p style="margin:0;">Courier: {{ $order->courier_name ?: 'Not assigned' }}<br>Service: {{ $order->latestShipment?->service_name ?: 'Not assigned' }}<br>Tracking: {{ $order->tracking_number ?: 'Not assigned' }}</p>
             </td>
             <td>
                 <p class="section-title">Packing overview</p>

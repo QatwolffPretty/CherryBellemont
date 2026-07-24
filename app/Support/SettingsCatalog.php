@@ -41,6 +41,11 @@ class SettingsCatalog
             'shipping.self_pickup_address' => self::d('text', '', true, 'Pickup address and collection instructions.'),
             'shipping.free_shipping_threshold' => self::d('decimal', '0.00', true, 'Optional future-order threshold; 0 disables it.'),
             'shipping.default_processing_days' => self::d('integer', 2, true, 'Displayed processing days.'),
+            'shipment.default_courier_id' => self::d('integer', 0, false, 'Optional default courier ID for newly created outbound shipments. 0 means no default.'),
+            'shipment.default_processing_days' => self::d('integer', 2, true, 'Default estimated delivery lead time for new shipments.'),
+            'shipment.customer_tracking_enabled' => self::d('boolean', true, true, 'Allow guests to view secure shipment tracking.'),
+            'shipment.manual_events_enabled' => self::d('boolean', true, false, 'Allow administrators to add manual shipment timeline events.'),
+            'shipment.delivery_email_enabled' => self::d('boolean', true, false, 'Send queued customer shipment updates.'),
             'gift.enabled' => self::d('boolean', true, true, 'Offer the Signature Gift Experience.'),
             'gift.wrap_price' => self::d('decimal', '30.00', true, 'Future-order gift wrapping price in MYR.'),
             'gift.title' => self::d('string', 'Cherry Bellemont Signature Gift Experience', true, 'Gift experience title.'),
@@ -72,6 +77,6 @@ class SettingsCatalog
 
     public static function has(string $key): bool { return array_key_exists($key, self::definitions()); }
     public static function definition(string $key): ?array { return self::definitions()[$key] ?? null; }
-    public static function groups(): array { return ['store' => 'General', 'contact' => 'Contact & Social', 'social' => 'Contact & Social', 'payment' => 'Payments Display', 'duitnow' => 'Payments Display', 'shipping' => 'Shipping & Pickup', 'gift' => 'Gift Experience', 'returns' => 'Returns', 'newsletter' => 'Newsletter', 'seo' => 'SEO', 'footer' => 'Footer', 'inventory' => 'Inventory']; }
+    public static function groups(): array { return ['store' => 'General', 'contact' => 'Contact & Social', 'social' => 'Contact & Social', 'payment' => 'Payments Display', 'duitnow' => 'Payments Display', 'shipping' => 'Shipping & Pickup', 'shipment' => 'Courier & Shipments', 'gift' => 'Gift Experience', 'returns' => 'Returns', 'newsletter' => 'Newsletter', 'seo' => 'SEO', 'footer' => 'Footer', 'inventory' => 'Inventory']; }
     private static function d(string $type, mixed $default, bool $public, string $description): array { return compact('type', 'default', 'public', 'description'); }
 }

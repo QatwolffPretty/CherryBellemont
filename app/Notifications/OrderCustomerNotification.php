@@ -72,6 +72,12 @@ class OrderCustomerNotification extends Notification implements ShouldQueue
                 'cancelled' => 'Order Cancelled',
                 default => 'Cherry Bellemont Order Update',
             },
+            'shipment_updated' => match ($this->context['shipment_status'] ?? null) {
+                'out_for_delivery' => 'Your Order Is Out for Delivery',
+                'delivery_failed' => 'Delivery Update Required',
+                'returned' => 'Shipment Returned to Sender',
+                default => 'Shipment Update',
+            },
             default => 'Cherry Bellemont Order Update',
         };
 
@@ -85,15 +91,19 @@ class OrderCustomerNotification extends Notification implements ShouldQueue
             ->findOrFail($this->order->getKey());
     }
 
-    /** @return array{reason: ?string, tracking_url: ?string} */
+    /** @return array{reason: ?string, tracking_url: ?string, shipment_status: ?string, estimated_delivery_at: ?string} */
     private function safeContext(): array
     {
         $reason = $this->context['reason'] ?? null;
         $trackingUrl = $this->context['tracking_url'] ?? null;
+        $shipmentStatus = $this->context['shipment_status'] ?? null;
+        $estimatedDelivery = $this->context['estimated_delivery_at'] ?? null;
 
         return [
             'reason' => is_scalar($reason) && trim((string) $reason) !== '' ? trim((string) $reason) : null,
             'tracking_url' => is_string($trackingUrl) && filter_var($trackingUrl, FILTER_VALIDATE_URL) ? $trackingUrl : null,
+            'shipment_status' => is_string($shipmentStatus) && in_array($shipmentStatus, ['out_for_delivery', 'delivery_failed', 'returned'], true) ? $shipmentStatus : null,
+            'estimated_delivery_at' => is_string($estimatedDelivery) ? $estimatedDelivery : null,
         ];
     }
 

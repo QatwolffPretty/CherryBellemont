@@ -58,6 +58,14 @@ Your order has been delivered. Thank you for choosing Cherry Bellemont.
 @if($event === 'status_updated' && $order->order_status === 'cancelled')
 Cancellation reason: {{ $order->cancellation_reason ?: 'Please contact support for further information.' }}
 @endif
+@if($event === 'shipment_updated')
+Shipment update: {{ str($context['shipment_status'] ?? 'updated')->replace('_', ' ')->title() }}
+Courier: {{ $order->courier_name ?: 'To be confirmed' }}
+Tracking number: {{ $order->tracking_number ?: 'To be confirmed' }}
+@if($context['estimated_delivery_at'])
+Estimated delivery: {{ $context['estimated_delivery_at'] }}
+@endif
+@endif
 
 @if($secureUrl)
 View your secure order: {{ $secureUrl }}

@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateSettingsRequest;
 use App\Http\Requests\UploadSettingMediaRequest;
 use App\Models\SettingAuditLog;
+use App\Models\Courier;
 use App\Services\SettingsService;
 use App\Support\SettingsCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class SettingsController extends Controller
@@ -31,7 +33,10 @@ class SettingsController extends Controller
             'settings' => $items->pluck('settings')->flatten(1),
         ])->values();
 
-        return view('admin.settings.index', compact('sections'));
+        return view('admin.settings.index', [
+            'sections' => $sections,
+            'shipmentCouriers' => Schema::hasTable('couriers') ? Courier::query()->active()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']) : collect(),
+        ]);
     }
 
     public function update(UpdateSettingsRequest $request, SettingsService $settings): RedirectResponse

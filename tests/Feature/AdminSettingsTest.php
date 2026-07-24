@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Setting;
+use App\Models\SettingAuditLog;
 use App\Models\User;
 use App\Services\GiftWrapping;
 use App\Services\SettingsService;
@@ -37,6 +38,7 @@ class AdminSettingsTest extends TestCase
         ])->assertSessionHas('success');
 
         $this->assertDatabaseHas('settings', ['group' => 'store', 'key' => 'company_name', 'value' => 'Cherry Bellemont Atelier']);
+        $this->assertDatabaseHas('settings_audit_logs', ['group' => 'store', 'key' => 'company_name', 'changed_by' => $admin->id]);
         $this->assertSame('Cherry Bellemont Atelier', app(SettingsService::class)->get('store.company_name'));
     }
 
@@ -101,6 +103,41 @@ class AdminSettingsTest extends TestCase
         $settings->set('store.company_name', 'Cache Refreshed', $this->admin()->id);
 
         $this->assertSame('Cache Refreshed', $settings->get('store.company_name'));
+    }
+
+    public function test_audit_history_loads_existing_entries_and_supports_pagination(): void
+    {
+        $admin = $this->admin();
+        $setting = Setting::query()->create([
+            'group' => 'store',
+            'key' => 'tagline',
+            'value' => 'A timeless collection',
+            'type' => 'string',
+            'updated_by' => $admin->id,
+        ]);
+
+        foreach (range(1, 31) as $number) {
+            SettingAuditLog::query()->create([
+                'setting_id' => $setting->id,
+                'group' => 'store',
+                'key' => 'tagline',
+                'old_value' => 'Earlier '.$number,
+                'new_value' => 'Updated '.$number,
+                'changed_by' => $admin->id,
+                'created_at' => now()->addSeconds($number),
+            ]);
+        }
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings.audit'))
+            ->assertOk()
+            ->assertSee('Settings Audit History')
+            ->assertSee('Updated 31');
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings.audit', ['page' => 2]))
+            ->assertOk()
+            ->assertSee('Updated 1');
     }
 
     private function admin(): User

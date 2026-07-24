@@ -10,6 +10,7 @@ use App\Models\PaymentReceipt;
 use App\Models\Product;
 use App\Models\Refund;
 use App\Models\ReturnRequest;
+use App\Models\Shipment;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -47,6 +48,7 @@ class AdminReportsService
                 'inventory' => $this->inventorySummary($period),
                 'newsletter' => $this->newsletterSummary($period),
                 'returns' => $this->returnSummary($period),
+                'shipments' => $this->shipmentSummary($period),
             ];
         });
 
@@ -134,6 +136,11 @@ class AdminReportsService
                 'filename' => 'cherry-bellemont-returns-report.csv',
                 'headings' => ['Return Number', 'Order Number', 'Customer', 'Type', 'Status', 'Requested At', 'Refunded Amount'],
                 'rows' => ReturnRequest::query()->with('order:id,order_number')->whereBetween('requested_at', [$period['start'], $period['end']])->latest('requested_at')->cursor()->map(fn (ReturnRequest $return) => [$return->return_number, $return->order?->order_number, $return->customer_email, $return->request_type, $return->status, optional($return->requested_at)->toDateTimeString(), (float) $return->refunds()->where('status', 'succeeded')->sum('amount')]),
+            ],
+            'shipments' => [
+                'filename' => 'cherry-bellemont-shipments-report.csv',
+                'headings' => ['Shipment Number', 'Order Number', 'Courier', 'Tracking Number', 'Status', 'Shipped At', 'Delivered At', 'Estimated Delivery'],
+                'rows' => Shipment::query()->with('order:id,order_number,number')->where('shipment_type', 'outbound')->whereBetween('created_at', [$period['start'], $period['end']])->latest()->cursor()->map(fn (Shipment $shipment) => [$shipment->shipment_number, $shipment->order?->order_number ?: $shipment->order?->number, $shipment->courier_name_snapshot, $shipment->tracking_number, $shipment->shipment_status, optional($shipment->shipped_at)->toDateTimeString(), optional($shipment->delivered_at)->toDateTimeString(), optional($shipment->estimated_delivery_at)->toDateString()]),
             ],
             default => throw new \InvalidArgumentException('Unknown report export.'),
         };
@@ -326,6 +333,30 @@ class AdminReportsService
             'refund_processing' => (clone $refunds)->whereIn('status', ['pending', 'processing'])->count(),
             'refund_failed' => (clone $refunds)->where('status', 'failed')->count(),
             'refund_succeeded' => (float) (clone $refunds)->where('status', 'succeeded')->sum('amount'),
+        ];
+    }
+
+    /** @param array{start: CarbonImmutable, end: CarbonImmutable} $period */
+    private function shipmentSummary(array $period): array
+    {
+        $shipments = Shipment::query()
+            ->where('shipment_type', 'outbound')
+            ->whereBetween('created_at', [$period['start'], $period['end']])
+            ->get(['courier_name_snapshot', 'shipment_status', 'shipped_at', 'delivered_at']);
+        $delivered = $shipments->where('shipment_status', 'delivered');
+        $durations = $delivered->filter(fn (Shipment $shipment) => $shipment->shipped_at && $shipment->delivered_at)
+            ->map(fn (Shipment $shipment) => $shipment->shipped_at->diffInHours($shipment->delivered_at));
+
+        return [
+            'total' => $shipments->count(),
+            'shipped' => $shipments->where('shipment_status', 'shipped')->count(),
+            'in_transit' => $shipments->where('shipment_status', 'in_transit')->count(),
+            'out_for_delivery' => $shipments->where('shipment_status', 'out_for_delivery')->count(),
+            'delivered' => $delivered->count(),
+            'delivery_failed' => $shipments->where('shipment_status', 'delivery_failed')->count(),
+            'returned' => $shipments->where('shipment_status', 'returned')->count(),
+            'average_delivery_hours' => $durations->isNotEmpty() ? round($durations->avg(), 1) : null,
+            'by_courier' => $shipments->groupBy(fn (Shipment $shipment) => $shipment->courier_name_snapshot ?: 'Manual / Unassigned')->map(fn ($items, $courier) => ['courier' => $courier, 'shipments' => $items->count(), 'delivered' => $items->where('shipment_status', 'delivered')->count(), 'failed' => $items->where('shipment_status', 'delivery_failed')->count()])->sortByDesc('shipments')->take(10)->values(),
         ];
     }
 

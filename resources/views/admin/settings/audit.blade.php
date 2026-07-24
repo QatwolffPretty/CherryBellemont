@@ -6,7 +6,7 @@
                 <input class="admin-field" name="group" placeholder="Group" value="{{ request('group') }}">
                 <input class="admin-field" name="key" placeholder="Setting key" value="{{ request('key') }}">
                 <input class="admin-field" type="date" name="from" value="{{ request('from') }}">
-                <div class="flex gap-3"><input class="admin-field" type="date" name="to" value="{{ request('to') }}"><button class="admin-button admin-button-primary" type="submit">Filter</button></div>
+                <div class="flex gap-3"><input class="admin-field" type="date" name="to" value="{{ request('to') }}"><button class="admin-button admin-button-primary" type="submit" aria-label="Filter audit history" title="Filter"><i class="bi bi-funnel-fill" aria-hidden="true"></i></button></div>
             </form>
         </x-admin.card>
         <x-admin.table>

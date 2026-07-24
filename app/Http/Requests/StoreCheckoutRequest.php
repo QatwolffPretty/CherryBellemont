@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\DeliveryMethod;
+use App\Services\SettingsService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -16,6 +17,12 @@ class StoreCheckoutRequest extends FormRequest
 
     public function rules(): array
     {
+        $settings = app(SettingsService::class);
+        $methods = collect([
+            'duitnow' => (bool) $settings->get('payment.duitnow_enabled', true),
+            'stripe' => (bool) $settings->get('payment.stripe_enabled', true),
+        ])->filter()->keys()->all();
+
         return [
             'customer_name' => ['required', 'string', 'max:160'],
             'customer_email' => ['required', 'email', 'max:255'],
@@ -30,8 +37,8 @@ class StoreCheckoutRequest extends FormRequest
             'delivery_instructions' => ['nullable', 'string', 'max:2000'],
             'customer_notes' => ['nullable', 'string', 'max:2000'],
             'gift_wrapping' => ['nullable', 'boolean'],
-            'gift_message' => ['nullable', 'string', 'max:250'],
-            'payment_method' => ['required', Rule::in(['duitnow', 'stripe'])],
+            'gift_message' => ['nullable', 'string', 'max:'.max(1, (int) $settings->get('gift.message_max_length', 250))],
+            'payment_method' => ['required', Rule::in($methods)],
         ];
     }
 

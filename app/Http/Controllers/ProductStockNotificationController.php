@@ -23,6 +23,7 @@ class ProductStockNotificationController extends Controller
         return match ($result) {
             'created' => back()->with('stock_notification_success', 'We’ll notify you when this item is back in stock.'),
             'duplicate' => back()->with('stock_notification_success', 'You are already waiting for this item.'),
+            'disabled' => back()->withErrors(['stock_notification' => 'Back-in-stock notifications are temporarily unavailable.']),
             default => back()->withErrors(['stock_notification' => 'This product is currently available.']),
         };
     }

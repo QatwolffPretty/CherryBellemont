@@ -5,19 +5,23 @@
     'structuredData' => null,
     'robots' => null,
 ])
+@inject('settings', '\\App\\Services\\SettingsService')
 
 @php
-    $pageTitle = $title ?: config('store.company_name');
-    $description = $metaDescription ?: 'Discover timeless pieces and quiet distinction from Cherry Bellemont.';
+    $companyName = $settings->get('store.company_name', config('store.company_name'));
+    $pageTitle = $title ?: $settings->get('seo.default_title', $companyName);
+    $description = $metaDescription ?: $settings->get('seo.default_description', 'Discover timeless pieces and quiet distinction from Cherry Bellemont.');
     $isPrivatePage = request()->is(['cart', 'checkout', 'orders*', 'stripe*', 'login', 'register', 'forgot-password', 'reset-password*', 'dashboard', 'profile']);
     $robots = $robots ?? ($isPrivatePage ? 'noindex, nofollow' : 'index, follow');
     $canonicalUrl = $isPrivatePage ? null : url()->current();
     $metaImagePath = is_string($metaImage) ? $metaImage : null;
     $isAbsoluteMetaImage = $metaImagePath
         && (str_starts_with($metaImagePath, 'http://') || str_starts_with($metaImagePath, 'https://'));
+    $configuredOgImage = $settings->imageUrl($settings->get('seo.default_og_image'), asset('images/Cherry Red No BG.png'));
     $openGraphImage = $metaImagePath
         ? ($isAbsoluteMetaImage ? $metaImagePath : asset($metaImagePath))
-        : asset('images/Cherry Red No BG.png');
+        : $configuredOgImage;
+    $favicon = $settings->imageUrl($settings->get('store.favicon'), asset('images/Cherry Red No BG.png'));
     $isHome = request()->routeIs('home');
     $isCollection = request()->routeIs('collection', 'collection.*', 'products.*');
     $isAbout = request()->routeIs('about');
@@ -29,12 +33,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $pageTitle }}</title>
-    <link rel="icon" type="image/png" href="{{ asset('images/Cherry Red No BG.png') }}">
+    <link rel="icon" type="image/png" href="{{ $favicon }}">
     <meta name="description" content="{{ $description }}">
     <meta name="robots" content="{{ $robots }}">
     @if($canonicalUrl)<link rel="canonical" href="{{ $canonicalUrl }}">@endif
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="{{ config('store.company_name') }}">
+    <meta property="og:site_name" content="{{ $companyName }}">
     <meta property="og:title" content="{{ $pageTitle }}">
     <meta property="og:description" content="{{ $description }}">
     <meta property="og:image" content="{{ $openGraphImage }}">
@@ -52,7 +56,7 @@
 <body class="min-h-screen bg-wine text-cream antialiased">
     <header class="border-b border-cream/15 bg-wine-deep/90">
         <nav class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-6">
-            <a href="{{ route('home') }}" class="font-display text-xl tracking-[.2em] text-cream sm:text-2xl">CHERRY BELLEMONT</a>
+            <a href="{{ route('home') }}" class="font-display text-xl tracking-[.2em] text-cream sm:text-2xl">{{ strtoupper($companyName) }}</a>
 
             <div class="flex items-center gap-5 text-sm">
                 <a class="nav-link {{ $isHome ? 'text-gold' : '' }}" href="{{ route('home') }}" @if($isHome) aria-current="page" @endif>Home</a>
@@ -80,12 +84,14 @@
 
     <main>{{ $slot }}</main>
 
-    <x-newsletter.subscribe-form source="newsletter_section" />
+    @if($settings->get('newsletter.section_enabled', true))
+        <x-newsletter.subscribe-form source="newsletter_section" />
+    @endif
 
     <footer class="border-t border-cream/15 bg-wine-deep px-6 py-12 text-center text-sm tracking-wider text-cream/60">
         <div class="mx-auto max-w-7xl">
             <div>
-                <p class="font-display text-lg tracking-[.18em] text-cream">CHERRY BELLEMONT</p>
+                <p class="font-display text-lg tracking-[.18em] text-cream">{{ strtoupper($companyName) }}</p>
                 <nav class="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-3" aria-label="Footer navigation">
                     <a class="nav-link" href="{{ route('faq.index') }}">FAQ</a>
                     <a class="nav-link" href="{{ route('contact') }}">Contact</a>
@@ -94,8 +100,8 @@
                     <a class="nav-link" href="{{ route('privacy.policy') }}">Privacy</a>
                     <a class="nav-link" href="{{ route('terms.policy') }}">Terms &amp; Conditions</a>
                 </nav>
-                <x-storefront.social-links centered icon-only heading-id="footer-social-links-heading" class="mt-8" />
-                <p class="mt-8">&copy; {{ date('Y') }} Cherry Bellemont <span class="mx-2 text-gold">&mdash;</span> All Rights Reserved</p>
+                @if($settings->get('footer.show_social_links', true))<x-storefront.social-links centered icon-only heading-id="footer-social-links-heading" class="mt-8" />@endif
+                <p class="mt-8">&copy; {{ date('Y') }} {{ $companyName }} <span class="mx-2 text-gold">&mdash;</span> {{ $settings->get('footer.copyright_text', 'All Rights Reserved') }}</p>
             </div>
         </div>
     </footer>

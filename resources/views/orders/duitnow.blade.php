@@ -1,3 +1,4 @@
+@inject('settings', '\\App\\Services\\SettingsService')
 <x-layouts.store title="DuitNow payment | Cherry Bellemont">
     <section class="mx-auto max-w-5xl px-6 py-16">
         <p class="uppercase tracking-[.25em] text-gold">DuitNow payment</p>
@@ -15,13 +16,16 @@
                 @endif
                 <p class="mt-4 text-2xl text-gold">Total RM {{ number_format($order->total, 2) }}</p>
                 <p class="mt-4 capitalize">Payment: {{ $order->payment_status }}</p>
-                @if(config('duitnow.qr_path'))<img class="mt-6 max-h-72 w-full object-contain" src="{{ asset(config('duitnow.qr_path')) }}" alt="DuitNow QR">@endif
+                @php($duitNowQr = $settings->imageUrl($settings->get('duitnow.qr_image', config('duitnow.qr_path'))))
+                @if($duitNowQr)<img class="mt-6 max-h-72 w-full object-contain" src="{{ $duitNowQr }}" alt="DuitNow QR">@endif
             </div>
 
             <div>
                 <h2 class="text-2xl">Payment instructions</h2>
-                <p class="mt-4 whitespace-pre-line text-cream/75">{{ config('duitnow.payment_instructions') }}</p>
-                <p class="mt-4">{{ config('duitnow.account_name') }} {{ config('duitnow.id') ? '· '.config('duitnow.id') : '' }}</p>
+                <p class="mt-4 whitespace-pre-line text-cream/75">{{ $settings->get('duitnow.instructions', config('duitnow.payment_instructions')) }}</p>
+                @php($duitNowAccount = $settings->get('duitnow.account_name', config('duitnow.account_name')))
+                @php($duitNowIdentifier = $settings->get('duitnow.public_id', config('duitnow.id')))
+                <p class="mt-4">{{ $duitNowAccount }} {{ $duitNowIdentifier ? '· '.$duitNowIdentifier : '' }}</p>
                 @php($latest = $order->paymentReceipts()->latest()->first())
                 @if($order->payment_status === 'paid')
                     <p class="mt-6 text-gold">Payment approved.</p>

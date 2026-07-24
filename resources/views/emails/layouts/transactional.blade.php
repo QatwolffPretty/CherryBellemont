@@ -1,13 +1,14 @@
 @php
     $brand = config('store.brand');
 @endphp
+@inject('settings', '\\App\\Services\\SettingsService')
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>{{ config('store.company_name') }}</title>
+    <title>{{ $settings->get('store.company_name', config('store.company_name')) }}</title>
 </head>
 <body style="margin:0;padding:0;background-color:{{ $brand['ivory'] }};color:{{ $brand['dark_wine'] }};font-family:Georgia,'Times New Roman',serif;">
     @if($preheader ?? false)

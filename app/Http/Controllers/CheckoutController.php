@@ -13,6 +13,7 @@ use App\Services\ShippingCalculator;
 use App\Services\OrderNotifier;
 use App\Services\AdminNotificationService;
 use App\Services\StripeCheckoutService;
+use App\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,11 +23,13 @@ use Illuminate\View\View;
 
 class CheckoutController extends Controller
 {
-    public function create(Cart $cart, CouponService $coupons): View|RedirectResponse
+    public function create(Cart $cart, CouponService $coupons, SettingsService $settings, GiftWrapping $giftWrapping): View|RedirectResponse
     {
         $lines = $cart->lines();
         if ($lines->isEmpty()) return to_route('cart.index')->withErrors(['cart' => 'Your bag is empty.']);
-        $deliveryMethods = DeliveryMethod::query()->where('is_active', true)->orderBy('sort_order')->get();
+        $deliveryMethods = DeliveryMethod::query()->where('is_active', true)
+            ->when(! $settings->get('shipping.self_pickup_enabled', true), fn ($query) => $query->where('is_pickup', false))
+            ->orderBy('sort_order')->get();
         if ($deliveryMethods->isEmpty()) {
             return to_route('cart.index')->withErrors(['cart' => 'Checkout is temporarily unavailable because no delivery methods are active.']);
         }
@@ -44,10 +47,15 @@ class CheckoutController extends Controller
             }
         }
 
-        return view('checkout.create', compact('lines', 'deliveryMethods', 'pendingStripeOrder', 'couponSummary', 'couponMessage') + $totals);
+        $paymentOptions = [
+            'duitnow' => ['enabled' => (bool) $settings->get('payment.duitnow_enabled', true), 'label' => $settings->get('payment.duitnow_display_name', 'DuitNow manual payment')],
+            'stripe' => ['enabled' => (bool) $settings->get('payment.stripe_enabled', true), 'label' => $settings->get('payment.stripe_display_name', 'Card Payment by Stripe')],
+        ];
+
+        return view('checkout.create', compact('lines', 'deliveryMethods', 'pendingStripeOrder', 'couponSummary', 'couponMessage', 'paymentOptions', 'giftWrapping') + $totals);
     }
 
-    public function store(StoreCheckoutRequest $request, Cart $cart, ShippingCalculator $shippingCalculator, CouponService $coupons, GiftWrapping $giftWrapping, OrderNotifier $notifier, AdminNotificationService $adminNotifier, StripeCheckoutService $stripe): RedirectResponse
+    public function store(StoreCheckoutRequest $request, Cart $cart, ShippingCalculator $shippingCalculator, CouponService $coupons, GiftWrapping $giftWrapping, OrderNotifier $notifier, AdminNotificationService $adminNotifier, StripeCheckoutService $stripe, SettingsService $settings): RedirectResponse
     {
         $contents = $cart->contents();
         if ($contents === []) return to_route('cart.index')->withErrors(['cart' => 'Your bag is empty.']);
@@ -57,10 +65,13 @@ class CheckoutController extends Controller
             ]);
         }
         $data = $request->validated();
+        if (! (bool) $settings->get('payment.'.$data['payment_method'].'_enabled', true)) {
+            throw ValidationException::withMessages(['payment_method' => 'This payment method is temporarily unavailable.']);
+        }
 
         $couponCode = $cart->couponCode();
         $inventoryAlerts = [];
-        $lowStockThreshold = (int) config('store.low_stock_threshold', 3);
+        $lowStockThreshold = max(0, (int) $settings->get('inventory.low_stock_threshold', config('store.low_stock_threshold', 3)));
         $order = DB::transaction(function () use ($contents, $data, $request, $shippingCalculator, $coupons, $giftWrapping, $couponCode, &$inventoryAlerts, $lowStockThreshold): Order {
             $products = Product::query()->whereIn('id', array_keys($contents))->lockForUpdate()->get()->keyBy('id');
             $items = [];
@@ -79,7 +90,7 @@ class CheckoutController extends Controller
             $amount = fn (int $cents): string => number_format($cents / 100, 2, '.', '');
             $shippingCents=(int)round(((float)$shipping['shipping_fee'])*100);
             $coupon = $coupons->calculate($couponCode, $subtotalCents, $shippingCents, $data['customer_email'], true);
-            $giftWrappingSelected = $request->boolean('gift_wrapping');
+            $giftWrappingSelected = $giftWrapping->enabled() && $request->boolean('gift_wrapping');
             $giftWrappingCents = $giftWrapping->feeCents($giftWrappingSelected);
             $totalCents = $coupon['total_cents'] + $giftWrappingCents;
             $shippingAddress = collect($data)->only(['customer_name', 'customer_email', 'customer_phone', 'address_line_1', 'address_line_2', 'city', 'state', 'postcode', 'country'])->all();

@@ -11,9 +11,15 @@ use Illuminate\Support\Str;
 
 class ProductStockNotificationService
 {
+    public function __construct(private readonly SettingsService $settings) {}
+
     /** @return 'created'|'duplicate'|'available' */
     public function request(Product $product, string $email, ?string $name): string
     {
+        if (! (bool) $this->settings->get('inventory.back_in_stock_enabled', true)) {
+            return 'disabled';
+        }
+
         return DB::transaction(function () use ($product, $email, $name): string {
             $product = Product::query()->lockForUpdate()->findOrFail($product->id);
             if ($product->status !== 'active' || $product->stock > 0) {
@@ -72,6 +78,10 @@ class ProductStockNotificationService
      */
     public function handleStockChange(Product $product, int $previousStock): void
     {
+        if (! (bool) $this->settings->get('inventory.back_in_stock_enabled', true)) {
+            return;
+        }
+
         if ($previousStock !== 0) {
             return;
         }

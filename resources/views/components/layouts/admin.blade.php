@@ -36,7 +36,7 @@
                 <a class="admin-nav {{ request()->routeIs('admin.faqs.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.faqs.index') }}"><i class="bi bi-patch-question"></i> FAQ</a>
                 <a class="admin-nav {{ request()->routeIs('admin.customers.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.customers.index') }}"><i class="bi bi-people"></i> Customers</a>
                 <a class="admin-nav {{ request()->routeIs('admin.reports.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.reports.index') }}"><i class="bi bi-graph-up"></i> Reports</a>
-                <a class="admin-nav {{ request()->routeIs('profile.*') ? 'admin-nav-active' : '' }}" href="{{ route('profile.edit') }}"><i class="bi bi-gear"></i> Settings</a>
+                <a class="admin-nav {{ request()->routeIs('admin.settings.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.settings.index') }}"><i class="bi bi-gear"></i> Settings</a>
                 <a class="admin-nav mt-6" href="{{ route('home') }}"><i class="bi bi-shop"></i> View Store</a>
                 <form method="POST" action="{{ route('logout') }}">@csrf <button class="admin-nav w-full" type="submit"><i class="bi bi-box-arrow-right"></i> Sign Out</button></form>
             </nav>

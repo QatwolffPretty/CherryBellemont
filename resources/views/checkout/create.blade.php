@@ -78,28 +78,30 @@
                     @error('delivery_instructions')<p class="mt-1 text-gold">{{ $message }}</p>@enderror
                 </div>
 
+                @if($giftWrapping->enabled())
                 <div class="border border-gold/35 p-5">
                     <label class="flex items-start gap-3" for="gift_wrapping">
                         <input id="gift_wrapping" class="mt-1" type="checkbox" name="gift_wrapping" value="1" @checked(old('gift_wrapping'))>
                         <span>
-                            <span class="block text-gold">Add Cherry Bellemont Signature Gift Experience (+RM30)</span>
-                            <span class="mt-1 block text-sm text-cream/65">Your order will be presented in Cherry Bellemont signature wrapping with premium tissue, ribbon, and a personalised gift card.</span>
+                            <span class="block text-gold">Add {{ $giftWrapping->title() }} (+RM {{ number_format($giftWrapping->feeCents(true) / 100, 2) }})</span>
+                            <span class="mt-1 block text-sm text-cream/65">{{ $giftWrapping->description() }}</span>
                         </span>
                     </label>
                     @error('gift_wrapping')<p class="mt-2 text-gold">{{ $message }}</p>@enderror
 
                     <div id="gift-message-field" class="mt-5" @if(! old('gift_wrapping')) hidden @endif>
                         <label for="gift_message">Gift message (optional)</label>
-                        <textarea id="gift_message" class="field mt-2" name="gift_message" maxlength="250" placeholder="Write a personal note for the gift card.">{{ old('gift_message') }}</textarea>
-                        <p class="mt-1 text-sm text-cream/60">Maximum 250 characters.</p>
+                        <textarea id="gift_message" class="field mt-2" name="gift_message" maxlength="{{ $giftWrapping->messageMaxLength() }}" placeholder="Write a personal note for the gift card.">{{ old('gift_message') }}</textarea>
+                        <p class="mt-1 text-sm text-cream/60">Maximum {{ $giftWrapping->messageMaxLength() }} characters.</p>
                         @error('gift_message')<p class="mt-1 text-gold">{{ $message }}</p>@enderror
                     </div>
                 </div>
+                @endif
 
                 <div>
                     <p class="mb-2">Payment method</p>
-                    <label><input type="radio" name="payment_method" value="duitnow" @checked(old('payment_method', 'duitnow') === 'duitnow')> DuitNow manual payment</label>
-                    <label class="ml-4"><input type="radio" name="payment_method" value="stripe" @checked(old('payment_method') === 'stripe')> Card Payment by Stripe</label>
+                    @if($paymentOptions['duitnow']['enabled'])<label><input type="radio" name="payment_method" value="duitnow" @checked(old('payment_method', $paymentOptions['duitnow']['enabled'] ? 'duitnow' : 'stripe') === 'duitnow')> {{ $paymentOptions['duitnow']['label'] }}</label>@endif
+                    @if($paymentOptions['stripe']['enabled'])<label class="ml-4"><input type="radio" name="payment_method" value="stripe" @checked(old('payment_method', ! $paymentOptions['duitnow']['enabled'] ? 'stripe' : null) === 'stripe')> {{ $paymentOptions['stripe']['label'] }}</label>@endif
                     @error('payment_method')<p class="mt-1 text-gold">{{ $message }}</p>@enderror
                 </div>
 
@@ -161,7 +163,7 @@
         }
 
         function toggleGiftMessage() {
-            giftMessageField.hidden = ! giftWrapping.checked;
+            if (giftWrapping && giftMessageField) giftMessageField.hidden = ! giftWrapping.checked;
         }
 
         async function quote() {
@@ -192,7 +194,7 @@
                         postcode: form.postcode.value,
                         customer_email: form.customer_email.value,
                         delivery_method_id: method.value,
-                        gift_wrapping: giftWrapping.checked,
+                        gift_wrapping: giftWrapping?.checked ?? false,
                     }),
                 });
                 const data = await response.json();
@@ -220,10 +222,7 @@
 
         ['customer_email', 'state', 'city', 'postcode'].forEach((name) => form[name].addEventListener('input', quote));
         method.addEventListener('change', quote);
-        giftWrapping.addEventListener('change', () => {
-            toggleGiftMessage();
-            quote();
-        });
+        if (giftWrapping) giftWrapping.addEventListener('change', () => { toggleGiftMessage(); quote(); });
         toggleGiftMessage();
         quote();
     </script>

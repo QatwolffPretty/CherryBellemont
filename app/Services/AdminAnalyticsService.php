@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\DB;
 
 class AdminAnalyticsService
 {
+    public function __construct(private readonly SettingsService $settings) {}
+
     /** @return array<string, string> */
     public function rangeOptions(): array
     {
@@ -374,7 +376,7 @@ class AdminAnalyticsService
 
     private function lowStockThreshold(): int
     {
-        return max(0, (int) config('store.low_stock_threshold', 3));
+        return max(0, (int) $this->settings->get('inventory.low_stock_threshold', config('store.low_stock_threshold', 3)));
     }
 
     /** @param array{start: CarbonImmutable, end: CarbonImmutable} $period */

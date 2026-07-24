@@ -7,6 +7,7 @@ use App\Models\NewsletterSubscriber;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Envelope;
 
 class NewsletterCampaignMail extends Mailable
@@ -42,8 +43,14 @@ class NewsletterCampaignMail extends Mailable
     public function envelope(): Envelope
     {
         $prefix = $this->isTest ? '[TEST] ' : '';
+        $settings = app(\App\Services\SettingsService::class);
+        $senderEmail = (string) $settings->get('newsletter.sender_email', config('mail.from.address'));
+        $senderName = (string) $settings->get('newsletter.sender_name', config('mail.from.name'));
 
-        return new Envelope(subject: $prefix.$this->campaign->subject);
+        return new Envelope(
+            subject: $prefix.$this->campaign->subject,
+            from: filter_var($senderEmail, FILTER_VALIDATE_EMAIL) ? new Address($senderEmail, $senderName) : null,
+        );
     }
 
     public function content(): Content

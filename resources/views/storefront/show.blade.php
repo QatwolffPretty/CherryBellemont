@@ -1,3 +1,4 @@
+@inject('settings', '\\App\\Services\\SettingsService')
 <x-layouts.store
     :title="$product->name.' | Cherry Bellemont'"
     :meta-description="\Illuminate\Support\Str::limit(trim(strip_tags((string) $product->description)), 155, '')"
@@ -37,6 +38,7 @@
                     <p class="mt-3 max-w-xl leading-7 text-cream/75">Enter your email and we’ll let you know when this Cherry Bellemont piece becomes available again.</p>
                     @if(session('stock_notification_success'))<p class="mt-5 border border-gold/50 p-4 text-gold">{{ session('stock_notification_success') }}</p>@endif
                     @error('stock_notification')<p class="mt-5 border border-gold/50 p-4 text-gold">{{ $message }}</p>@enderror
+                    @if($settings->get('inventory.back_in_stock_enabled', true))
                     <form class="mt-6 grid gap-4 sm:grid-cols-2" method="POST" action="{{ route('product-stock-notifications.store', $product) }}">
                         @csrf
                         <input class="field" type="email" name="email" value="{{ old('email') }}" placeholder="Email Address" required>
@@ -45,6 +47,9 @@
                         @error('email')<p class="sm:col-span-2 text-gold">{{ $message }}</p>@enderror
                         @error('name')<p class="sm:col-span-2 text-gold">{{ $message }}</p>@enderror
                     </form>
+                    @else
+                        <p class="mt-5 text-sm text-cream/65">Please check back soon for availability.</p>
+                    @endif
                 </div>
             @endif
 

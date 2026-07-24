@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Storage;
 
 class OrderDocumentService
 {
+    public function __construct(private readonly SettingsService $settings) {}
+
     public function invoice(Order $order): DompdfDocument
     {
         $order = $this->ensureInvoiceNumber($order);
@@ -77,9 +79,9 @@ class OrderDocumentService
             'items' => $items,
             'invoiceNumber' => $order->invoice_number,
             'logo' => $this->logoDataUri(),
-            'companyName' => config('store.company_name'),
-            'supportEmail' => config('store.support_email'),
-            'businessAddress' => config('store.business_address'),
+            'companyName' => $this->settings->get('store.company_name', config('store.company_name')),
+            'supportEmail' => $this->settings->get('contact.support_email', config('store.support_email')),
+            'businessAddress' => $this->settings->get('contact.address', config('store.business_address')),
             'deliveryLines' => $deliveryLines,
             'isPickup' => $isPickup,
             'paymentDate' => $order->stripe_paid_at ?? $latestApprovedReceipt?->reviewed_at,
@@ -118,9 +120,14 @@ class OrderDocumentService
 
     private function logoDataUri(): ?string
     {
-        $path = config('store.logo_path');
+        $configured = $this->settings->get('store.logo_dark');
+        if (is_string($configured) && Storage::disk('public')->exists($configured)) {
+            return $this->dataUri(Storage::disk('public')->path($configured));
+        }
 
-        return is_string($path) && is_file($path) ? $this->dataUri($path) : null;
+        $fallback = config('store.logo_path');
+
+        return is_string($fallback) && is_file($fallback) ? $this->dataUri($fallback) : null;
     }
 
     private function storedImageDataUri(?string $path): ?string

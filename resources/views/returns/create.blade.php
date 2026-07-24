@@ -1,3 +1,4 @@
+@inject('settings', '\\App\\Services\\SettingsService')
 <x-layouts.store :title="'Return request | Cherry Bellemont'">
     <section class="mx-auto max-w-5xl px-6 py-16">
         <p class="uppercase tracking-[.25em] text-gold">Aftercare</p>
@@ -61,7 +62,7 @@
             </section>
 
             <section class="border border-cream/15 p-6">
-                <label>Supporting photos (optional, up to {{ config('store.returns.maximum_return_images', 5) }})
+                <label>Supporting photos (optional, up to {{ $settings->get('returns.maximum_images', config('store.returns.maximum_return_images', 5)) }})
                     <input class="field mt-2" type="file" name="images[]" accept=".jpg,.jpeg,.png,.webp" multiple>
                 </label>
                 <label class="mt-6 flex items-start gap-3 text-sm text-cream/75"><input class="mt-1" type="checkbox" name="policy_acknowledged" value="1" required @checked(old('policy_acknowledged'))><span>I understand that submitting a request does not guarantee a refund, exchange or return approval. I have reviewed the <a class="text-gold underline" href="{{ route('refund.policy') }}">Refund &amp; Returns Policy</a>.</span></label>

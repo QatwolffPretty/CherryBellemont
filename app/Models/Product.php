@@ -23,4 +23,5 @@ class Product extends Model
     public function reviews(): HasMany { return $this->hasMany(Review::class); }
     public function approvedReviews(): HasMany { return $this->reviews()->approved(); }
     public function stockNotifications(): HasMany { return $this->hasMany(ProductStockNotification::class); }
+    public function returnRequestItems(): HasMany { return $this->hasMany(ReturnRequestItem::class); }
 }

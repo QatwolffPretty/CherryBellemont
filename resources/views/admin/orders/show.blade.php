@@ -43,7 +43,24 @@
                     <p>Original shipping <span class="float-right">RM {{ number_format($order->original_shipping_fee ?? $order->shipping_fee, 2) }}</span></p>
                     <p>Shipping fee <span class="float-right">RM {{ number_format($order->shipping_fee, 2) }}</span></p>
                     <p>Free-shipping discount <span class="float-right text-gold">−RM {{ number_format($order->free_shipping_discount ?? 0, 2) }}</span></p>
+                    <p>Signature Gift Experience <span class="float-right {{ $order->gift_wrapping ? 'text-gold' : '' }}">{{ $order->gift_wrapping ? 'Yes' : 'No' }}</span></p>
+                    @if($order->gift_wrapping)
+                        <p>Gift wrapping fee <span class="float-right text-gold">RM {{ number_format($order->gift_wrapping_fee, 2) }}</span></p>
+                        <p class="mt-3 border-t border-gold/35 pt-3 text-gold">Gift message</p>
+                        <p class="mt-1 whitespace-pre-line text-cream/75">{{ $order->gift_message ?: 'No personalised message.' }}</p>
+                    @endif
                     <p class="mt-3 text-xl text-gold">Total <span class="float-right">RM {{ number_format($order->total, 2) }}</span></p>
+                </x-admin.card>
+
+                <x-admin.card title="Returns & refunds">
+                    <p class="mt-4">Return status: <x-admin.badge :status="$order->return_status" :label="$order->return_status ? null : 'No request'" /></p>
+                    <p class="mt-3">Refunded amount <span class="float-right text-gold">RM {{ number_format((float) ($order->refunded_amount ?? 0), 2) }}</span></p>
+                    <p>Refund status <span class="float-right capitalize">{{ $order->refund_status ?: '—' }}</span></p>
+                    @forelse($order->returnRequests as $returnRequest)
+                        <div class="mt-4 flex items-center justify-between border-t border-cream/15 pt-4"><div><p>{{ $returnRequest->return_number }}</p><p class="mt-1 text-sm capitalize text-cream/60">{{ str($returnRequest->status)->replace('_', ' ') }}</p></div><x-admin.button variant="outline" :href="route('admin.returns.show', $returnRequest)">View return</x-admin.button></div>
+                    @empty
+                        <p class="mt-4 text-sm text-cream/65">No return request has been submitted.</p>
+                    @endforelse
                 </x-admin.card>
             </div>
 

@@ -69,6 +69,20 @@
                 </section>
 
                 <section class="border border-cream/15 p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div><h2 class="text-2xl">Returns &amp; exchanges</h2><p class="mt-2 text-sm text-cream/65">Delivered paid orders can be submitted for review within the applicable return window.</p></div>
+                        @if($canRequestReturn ?? false)
+                            <a class="luxury-link" href="{{ isset($token) && $token ? route('returns.guest.create', ['order' => $order->order_number, 'token' => $token]) : route('returns.create', $order) }}">Request aftercare</a>
+                        @endif
+                    </div>
+                    @forelse($order->returnRequests ?? [] as $returnRequest)
+                        <div class="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-cream/15 pt-4"><div><p>{{ $returnRequest->return_number }}</p><p class="mt-1 text-sm capitalize text-cream/60">{{ str($returnRequest->status)->replace('_', ' ') }}</p></div><a class="luxury-link" href="{{ isset($token) && $token ? route('returns.guest.show', ['order' => $order->order_number, 'token' => $token, 'returnRequest' => $returnRequest]) : route('returns.show', ['order' => $order, 'returnRequest' => $returnRequest]) }}">View request</a></div>
+                    @empty
+                        <p class="mt-4 text-cream/65">No aftercare requests have been submitted for this order.</p>
+                    @endforelse
+                </section>
+
+                <section class="border border-cream/15 p-6">
                     <h2 class="text-2xl">{{ $order->payment_method === 'stripe' ? 'Card payment' : 'Receipt history' }}</h2>
                     @if($order->payment_method === 'stripe')
                         <p class="mt-3 text-cream/65">Stripe card payments do not require a manual receipt upload.</p>
@@ -99,6 +113,10 @@
                 <p>Discount <span class="float-right text-gold">−RM {{ number_format($order->discount_amount ?? 0, 2) }}</span></p>
                 <p>Shipping <span class="float-right">RM {{ number_format($order->shipping_fee, 2) }}</span></p>
                 @if(($order->free_shipping_discount ?? 0) > 0)<p>Free shipping <span class="float-right text-gold">−RM {{ number_format($order->free_shipping_discount, 2) }}</span></p>@endif
+                @if($order->gift_wrapping)
+                    <p class="mt-3 text-gold">Signature Gift Experience <span class="float-right">RM {{ number_format($order->gift_wrapping_fee, 2) }}</span></p>
+                    @if($order->gift_message)<p class="mt-2 text-sm text-cream/65">Gift message: {{ $order->gift_message }}</p>@endif
+                @endif
                 <p class="mt-4 text-2xl">Total <span class="float-right text-gold">RM {{ number_format($order->total, 2) }}</span></p>
 
                 @if($order->payment_status === 'paid')

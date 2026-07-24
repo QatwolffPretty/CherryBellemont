@@ -70,6 +70,13 @@
     @include('emails.components.divider')
     @include('emails.components.order-summary', ['order' => $order])
 
+    @if($order->gift_wrapping && in_array($event, ['order_placed', 'payment_approved'], true))
+        <p style="margin:0 0 14px;color:{{ $brand['muted_burgundy'] }};font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.7;">Your Signature Gift Experience is included with this order.{{ $order->gift_message ? ' Gift message: '.$order->gift_message : '' }}</p>
+    @endif
+    @if($order->gift_wrapping && $event === 'status_updated' && $order->order_status === 'packed')
+        <p style="margin:0 0 14px;color:{{ $brand['muted_burgundy'] }};font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.7;">Your Signature Gift Experience has been prepared with the order.</p>
+    @endif
+
     @if($event === 'order_placed' && $order->payment_method === 'duitnow' && $duitNowUrl)
         @component('emails.components.primary-button', ['url' => $duitNowUrl])
             Complete DuitNow Payment

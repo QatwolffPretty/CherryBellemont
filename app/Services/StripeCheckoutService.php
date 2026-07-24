@@ -57,6 +57,7 @@ class StripeCheckoutService
         $discountSen = $this->amountInSen($order->discount_amount ?? 0);
         $shippingSen = $this->amountInSen($order->shipping_fee);
         $freeShippingSen = $this->amountInSen($order->free_shipping_discount ?? 0);
+        $giftWrappingSen = $this->amountInSen($order->gift_wrapping_fee ?? 0);
         $netShippingSen = max(0, $shippingSen - $freeShippingSen);
 
         $lineItems = $discountSen > 0 ? [[
@@ -83,6 +84,17 @@ class StripeCheckoutService
                     'currency' => $this->currency(),
                     'unit_amount' => $netShippingSen,
                     'product_data' => ['name' => 'Shipping — '.($order->shipping_method_name ?? 'Delivery')],
+                ],
+                'quantity' => 1,
+            ];
+        }
+
+        if ($giftWrappingSen > 0) {
+            $lineItems[] = [
+                'price_data' => [
+                    'currency' => $this->currency(),
+                    'unit_amount' => $giftWrappingSen,
+                    'product_data' => ['name' => 'Cherry Bellemont Signature Gift Experience'],
                 ],
                 'quantity' => 1,
             ];

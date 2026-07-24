@@ -13,6 +13,12 @@ Shipping: RM {{ number_format($order->shipping_fee, 2) }}
 @if(($order->free_shipping_discount ?? 0) > 0)
 Free-shipping discount: -RM {{ number_format($order->free_shipping_discount, 2) }}
 @endif
+@if($order->gift_wrapping)
+Signature Gift Experience: RM {{ number_format($order->gift_wrapping_fee, 2) }}
+@if($order->gift_message)
+Gift message: {{ $order->gift_message }}
+@endif
+@endif
 Total: RM {{ number_format($order->total, 2) }}
 
 @if($event === 'order_placed' && $order->payment_method === 'duitnow')

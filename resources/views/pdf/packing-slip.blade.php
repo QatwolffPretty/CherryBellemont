@@ -61,6 +61,11 @@
             <td>
                 <p class="section-title">Packing overview</p>
                 <p style="margin:0;">Payment status: {{ str($order->payment_status ?: 'pending')->title() }}<br>Total items: {{ $totalItemCount }}</p>
+                @if($order->gift_wrapping)
+                    <p style="color:#4a1023;font-weight:bold;margin:7px 0 0;">GIFT ORDER · Signature Gift Experience</p>
+                    <p class="section-title" style="margin-top:10px;">Gift message</p>
+                    <p style="margin:0;">{{ $order->gift_message ?: 'No personalised gift message.' }}</p>
+                @endif
             </td>
         </tr></table>
 

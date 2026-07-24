@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\Refund;
 use App\Models\StripeWebhookEvent;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,8 @@ class StripeWebhookService
         private readonly StripeCheckoutService $stripe,
         private readonly OrderNotifier $notifier,
         private readonly AdminNotificationService $adminNotifier,
+        private readonly RefundService $refunds,
+        private readonly ReturnNotifier $returnNotifier,
     ) {}
 
     public function process(object $event, array $payload): void
@@ -25,7 +28,8 @@ class StripeWebhookService
         $object = $event->data->object ?? null;
 
         try {
-            $approvedOrder = DB::transaction(function () use ($record, $event, $object): ?Order {
+            $completedRefund = null;
+            $approvedOrder = DB::transaction(function () use ($record, $event, $object, &$completedRefund): ?Order {
                 $record = StripeWebhookEvent::query()->lockForUpdate()->findOrFail($record->id);
                 if ($record->processed_at) {
                     Log::info('Stripe webhook event already processed.', $this->context($event, $object, null, 'already processed'));
@@ -38,7 +42,8 @@ class StripeWebhookService
                     'checkout.session.async_payment_failed' => $this->markSessionFailed($object),
                     'payment_intent.succeeded' => $this->markPaymentIntentSucceeded($object),
                     'payment_intent.payment_failed' => $this->markPaymentIntentFailed($object),
-                    'charge.refunded' => $this->markChargeRefunded($object),
+                    'refund.created', 'refund.updated' => $this->markStripeRefund($object, $completedRefund),
+                    'charge.refunded' => $this->recordChargeRefunded($object),
                     default => null,
                 };
 
@@ -70,6 +75,9 @@ class StripeWebhookService
         if ($approvedOrder) {
             $this->notifier->send($approvedOrder, 'payment_approved');
             $this->adminNotifier->send('stripe_payment_confirmed', ['order' => $approvedOrder]);
+        }
+        if ($completedRefund?->returnRequest) {
+            $this->returnNotifier->customer($completedRefund->returnRequest, $completedRefund->status === 'succeeded' ? 'refund_succeeded' : 'refund_failed');
         }
     }
 
@@ -210,19 +218,53 @@ class StripeWebhookService
         return null;
     }
 
-    private function markChargeRefunded(?object $charge): ?Order
+    private function markStripeRefund(?object $stripeRefund, ?Refund &$completedRefund): ?Order
     {
-        $order = $this->lockedOrderForPaymentIntent($charge);
-        if (! $order) {
-            throw new StripePaymentVerificationException('No matching Stripe order was found for the refunded charge.');
+        $refundId = $this->identifier($stripeRefund?->id ?? null);
+        $intentId = $this->identifier($stripeRefund?->payment_intent ?? null);
+        if (! $refundId || ! $intentId) {
+            throw new StripePaymentVerificationException('Stripe refund payload did not include a refund or PaymentIntent reference.');
         }
 
-        $order->update([
-            'payment_status' => 'refunded',
-            'payment_provider' => 'stripe',
-            'stripe_payment_status' => 'refunded',
-            'stripe_payment_intent_id' => $this->identifier($charge->payment_intent ?? null),
-            'stripe_failure_reason' => null,
+        $refund = Refund::query()
+            ->where('stripe_refund_id', $refundId)
+            ->orWhere(fn ($query) => $query->where('stripe_payment_intent_id', $intentId)->whereIn('status', ['processing', 'pending']))
+            ->lockForUpdate()
+            ->first();
+        if (! $refund) {
+            Log::warning('Stripe refund webhook was ignored because no internal refund was found.', [
+                'stripe_refund_id' => $this->identifier($refundId),
+                'payment_intent_id' => $this->identifier($intentId),
+            ]);
+
+            return null;
+        }
+
+        if (isset($stripeRefund->amount) && (int) $stripeRefund->amount !== $this->stripe->amountInSen($refund->amount)) {
+            throw new StripePaymentVerificationException('Stripe refund amount did not match the approved refund amount.', $refund->order);
+        }
+        if (isset($stripeRefund->currency) && strtolower((string) $stripeRefund->currency) !== $this->stripe->currency()) {
+            throw new StripePaymentVerificationException('Stripe refund currency did not match the configured currency.', $refund->order);
+        }
+
+        if (! $refund->stripe_refund_id) {
+            $refund->update(['stripe_refund_id' => $refundId, 'processed_at' => now()]);
+        }
+
+        if (($stripeRefund->status ?? null) === 'succeeded') {
+            $completedRefund = $this->refunds->confirm($refund->fresh());
+        } elseif (in_array($stripeRefund->status ?? null, ['failed', 'canceled'], true)) {
+            $completedRefund = $this->refunds->fail($refund->fresh(), 'Stripe reported that the refund could not be completed.');
+        }
+
+        return null;
+    }
+
+    private function recordChargeRefunded(?object $charge): ?Order
+    {
+        Log::info('Stripe charge.refunded received; refund.updated is used as the authoritative return-refund event.', [
+            'payment_intent_id' => $this->identifier($charge?->payment_intent ?? null),
+            'charge_id' => $this->identifier($charge?->id ?? null),
         ]);
 
         return null;

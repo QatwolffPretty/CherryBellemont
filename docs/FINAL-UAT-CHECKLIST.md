@@ -9,7 +9,7 @@ Run this checklist on the production-like URL over HTTPS before opening Cherry B
 - [ ] Add to Bag, quantity updates, removal, and clear bag work without exceeding stock.
 - [ ] WELCOMECHERRIES10 applies as a RM10 fixed discount, persists into checkout, and is removable.
 - [ ] Standard delivery, express delivery, and self pickup calculate the expected totals.
-- [ ] Release blocker: the RM30 Signature Gift Experience is not present in the current checkout source and must be implemented and tested in a separate milestone before it can be advertised.
+- [ ] RM30 Signature Gift Experience adds exactly RM30.00 to the server-calculated total, is shown in the payment flow and documents, and preserves the optional gift message.
 - [ ] A guest can complete a DuitNow order, upload a valid receipt, and open only its own secure order URL.
 - [ ] A Stripe test payment reaches Stripe Checkout and becomes paid only after the verified webhook.
 - [ ] A paid customer can download an invoice. The invoice totals match the secure order page.

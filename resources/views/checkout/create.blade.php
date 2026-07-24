@@ -78,6 +78,24 @@
                     @error('delivery_instructions')<p class="mt-1 text-gold">{{ $message }}</p>@enderror
                 </div>
 
+                <div class="border border-gold/35 p-5">
+                    <label class="flex items-start gap-3" for="gift_wrapping">
+                        <input id="gift_wrapping" class="mt-1" type="checkbox" name="gift_wrapping" value="1" @checked(old('gift_wrapping'))>
+                        <span>
+                            <span class="block text-gold">Add Cherry Bellemont Signature Gift Experience (+RM30)</span>
+                            <span class="mt-1 block text-sm text-cream/65">Your order will be presented in Cherry Bellemont signature wrapping with premium tissue, ribbon, and a personalised gift card.</span>
+                        </span>
+                    </label>
+                    @error('gift_wrapping')<p class="mt-2 text-gold">{{ $message }}</p>@enderror
+
+                    <div id="gift-message-field" class="mt-5" @if(! old('gift_wrapping')) hidden @endif>
+                        <label for="gift_message">Gift message (optional)</label>
+                        <textarea id="gift_message" class="field mt-2" name="gift_message" maxlength="250" placeholder="Write a personal note for the gift card.">{{ old('gift_message') }}</textarea>
+                        <p class="mt-1 text-sm text-cream/60">Maximum 250 characters.</p>
+                        @error('gift_message')<p class="mt-1 text-gold">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+
                 <div>
                     <p class="mb-2">Payment method</p>
                     <label><input type="radio" name="payment_method" value="duitnow" @checked(old('payment_method', 'duitnow') === 'duitnow')> DuitNow manual payment</label>
@@ -108,6 +126,7 @@
             <p class="mt-3 flex justify-between"><span>Discount</span><span id="discount-amount" class="text-gold">−RM {{ number_format($couponSummary['discount_cents'] / 100, 2) }}</span></p>
             <p class="mt-3 flex justify-between"><span>Shipping</span><span id="shipping-fee">&mdash;</span></p>
             <p id="free-shipping-row" class="mt-3 hidden justify-between"><span>Free-shipping discount</span><span id="free-shipping-discount" class="text-gold">−RM 0.00</span></p>
+            <p id="gift-wrapping-row" class="mt-3 hidden justify-between"><span>Signature Gift Experience</span><span id="gift-wrapping-fee" class="text-gold">RM 0.00</span></p>
             <p class="mt-4 flex justify-between text-xl text-gold"><span>Total</span><span id="grand-total">RM {{ number_format(($subtotal - $couponSummary['discount_cents']) / 100, 2) }}</span></p>
         </aside>
     </section>
@@ -121,6 +140,10 @@
         const discount = document.getElementById('discount-amount');
         const freeShippingRow = document.getElementById('free-shipping-row');
         const freeShippingDiscount = document.getElementById('free-shipping-discount');
+        const giftWrapping = document.getElementById('gift_wrapping');
+        const giftMessageField = document.getElementById('gift-message-field');
+        const giftWrappingRow = document.getElementById('gift-wrapping-row');
+        const giftWrappingFee = document.getElementById('gift-wrapping-fee');
         const total = document.getElementById('grand-total');
         const button = document.getElementById('place-order');
         const subtotal = {{ $subtotal / 100 }};
@@ -135,6 +158,10 @@
                 input.disabled = pickup;
                 input.required = ! pickup && input.name !== 'address_line_2';
             });
+        }
+
+        function toggleGiftMessage() {
+            giftMessageField.hidden = ! giftWrapping.checked;
         }
 
         async function quote() {
@@ -165,6 +192,7 @@
                         postcode: form.postcode.value,
                         customer_email: form.customer_email.value,
                         delivery_method_id: method.value,
+                        gift_wrapping: giftWrapping.checked,
                     }),
                 });
                 const data = await response.json();
@@ -179,6 +207,9 @@
                 freeShippingRow.classList.toggle('hidden', Number(data.free_shipping_discount) <= 0);
                 freeShippingRow.classList.toggle('flex', Number(data.free_shipping_discount) > 0);
                 freeShippingDiscount.textContent = '−RM ' + Number(data.free_shipping_discount).toFixed(2);
+                giftWrappingRow.classList.toggle('hidden', Number(data.gift_wrapping_fee) <= 0);
+                giftWrappingRow.classList.toggle('flex', Number(data.gift_wrapping_fee) > 0);
+                giftWrappingFee.textContent = 'RM ' + Number(data.gift_wrapping_fee).toFixed(2);
                 total.textContent = 'RM ' + Number(data.total).toFixed(2);
                 button.disabled = false;
             } catch (error) {
@@ -189,6 +220,11 @@
 
         ['customer_email', 'state', 'city', 'postcode'].forEach((name) => form[name].addEventListener('input', quote));
         method.addEventListener('change', quote);
+        giftWrapping.addEventListener('change', () => {
+            toggleGiftMessage();
+            quote();
+        });
+        toggleGiftMessage();
         quote();
     </script>
 </x-layouts.store>

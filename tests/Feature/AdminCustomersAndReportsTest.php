@@ -95,15 +95,18 @@ class AdminCustomersAndReportsTest extends TestCase
 
     public function test_reports_count_only_paid_non_cancelled_sales_and_keep_providers_separate(): void
     {
-        $this->order(['payment_status' => 'paid', 'payment_provider' => 'stripe', 'payment_method' => 'stripe', 'subtotal' => '100.00', 'shipping_fee' => '8.00', 'total' => '108.00']);
+        $this->order(['payment_status' => 'paid', 'payment_provider' => 'stripe', 'payment_method' => 'stripe', 'subtotal' => '100.00', 'shipping_fee' => '8.00', 'gift_wrapping' => true, 'gift_wrapping_fee' => '30.00', 'total' => '138.00']);
         $this->order(['payment_status' => 'paid', 'payment_provider' => 'duitnow', 'payment_method' => 'duitnow', 'subtotal' => '40.00', 'shipping_fee' => '0.00', 'total' => '40.00']);
         $this->order(['payment_status' => 'paid', 'order_status' => 'cancelled', 'payment_provider' => 'stripe', 'total' => '90.00']);
         $this->order(['payment_status' => 'pending', 'payment_provider' => 'stripe', 'total' => '70.00']);
 
         $report = app(AdminReportsService::class)->report(['range' => 'today', 'from_date' => null, 'to_date' => null]);
 
-        $this->assertSame(148.0, $report['sales']['net_order_revenue']);
-        $this->assertSame(108.0, $report['payments']['stripe_revenue']);
+        $this->assertSame(178.0, $report['sales']['net_order_revenue']);
+        $this->assertSame(1, $report['sales']['gift_orders']);
+        $this->assertSame(30.0, $report['sales']['gift_wrapping_revenue']);
+        $this->assertSame(50.0, $report['sales']['gift_wrapping_usage_rate']);
+        $this->assertSame(138.0, $report['payments']['stripe_revenue']);
         $this->assertSame(40.0, $report['payments']['duitnow_revenue']);
     }
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Services\OrderDocumentService;
+use App\Services\ReturnEligibilityService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,11 +16,13 @@ class OrderController extends Controller
         return view('orders.index', ['orders' => $request->user()->orders()->latest()->paginate(12)]);
     }
 
-    public function show(Request $request, Order $order): View
+    public function show(Request $request, Order $order, ReturnEligibilityService $returns): View
     {
         $this->authorizeOrder($request, $order);
 
-        return view('orders.show', ['order' => $order->load('items.product', 'items.review', 'paymentReceipts')]);
+        $order->load('items.product', 'items.review', 'paymentReceipts', 'returnRequests.refunds');
+
+        return view('orders.show', ['order' => $order, 'canRequestReturn' => $returns->canRequest($order)]);
     }
 
     public function confirmation(Request $request, Order $order): View
@@ -29,11 +32,13 @@ class OrderController extends Controller
         return view('orders.confirmation', ['order' => $order->load('items')]);
     }
 
-    public function guestShow(Order $order, string $token): View
+    public function guestShow(Order $order, string $token, ReturnEligibilityService $returns): View
     {
         $this->authorizeGuest($order, $token);
 
-        return view('orders.show', ['order' => $order->load('items.product', 'items.review', 'paymentReceipts'), 'token' => $token]);
+        $order->load('items.product', 'items.review', 'paymentReceipts', 'returnRequests.refunds');
+
+        return view('orders.show', ['order' => $order, 'token' => $token, 'canRequestReturn' => $returns->canRequest($order)]);
     }
 
     public function guestConfirmation(Order $order, string $token): View

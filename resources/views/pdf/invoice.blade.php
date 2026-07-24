@@ -86,6 +86,7 @@
             @if((float) ($order->discount_amount ?? 0) > 0)<tr><td>Discount</td><td class="right">−RM {{ number_format((float) $order->discount_amount, 2) }}</td></tr>@endif
             <tr><td>Shipping fee</td><td class="right">RM {{ number_format((float) $order->shipping_fee, 2) }}</td></tr>
             @if((float) ($order->free_shipping_discount ?? 0) > 0)<tr><td>Free-shipping discount</td><td class="right">−RM {{ number_format((float) $order->free_shipping_discount, 2) }}</td></tr>@endif
+            @if($order->gift_wrapping)<tr><td>Signature Gift Experience</td><td class="right">RM {{ number_format((float) $order->gift_wrapping_fee, 2) }}</td></tr>@endif
             <tr class="grand"><td>Total</td><td class="right">RM {{ number_format((float) $order->total, 2) }}</td></tr>
         </table>
 

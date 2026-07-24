@@ -28,6 +28,12 @@ return [
     'facebook_url' => $facebookUrl,
     'admin_notification_email' => env('ADMIN_NOTIFICATION_EMAIL'),
     'low_stock_threshold' => max(0, (int) env('LOW_STOCK_THRESHOLD', 3)),
+    'returns' => [
+        'return_window_days' => 14,
+        'damaged_item_report_days' => 7,
+        'maximum_return_images' => 5,
+        'maximum_return_image_size_mb' => 5,
+    ],
     'contact' => [
         'support_email' => $supportEmail,
         'general_email' => $generalEmail,

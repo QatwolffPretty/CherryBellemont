@@ -49,7 +49,7 @@ class OrderController extends Controller
 
     public function show(Order $order): View
     {
-        return view('admin.orders.show', ['order' => $order->load('items.product', 'paymentReceipts.reviewer')]);
+        return view('admin.orders.show', ['order' => $order->load('items.product', 'paymentReceipts.reviewer', 'returnRequests.refunds')]);
     }
 
     public function invoice(Order $order, OrderDocumentService $documents): Response

@@ -6,4 +6,6 @@
     'shippingMethod' => $order->shipping_method_name,
     'discount' => $order->discount_amount ?? 0,
     'freeShippingDiscount' => $order->free_shipping_discount ?? 0,
+    'giftWrappingFee' => $order->gift_wrapping_fee ?? 0,
+    'giftWrapping' => $order->gift_wrapping ?? false,
 ])

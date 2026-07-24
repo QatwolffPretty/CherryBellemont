@@ -15,4 +15,6 @@ class User extends Authenticatable
     protected $hidden = ['password', 'remember_token'];
     protected function casts(): array { return ['email_verified_at' => 'datetime', 'password' => 'hashed', 'is_admin' => 'boolean']; }
     public function orders(): HasMany { return $this->hasMany(Order::class); }
+    public function reviewedReturnRequests(): HasMany { return $this->hasMany(ReturnRequest::class, 'reviewed_by'); }
+    public function processedRefunds(): HasMany { return $this->hasMany(Refund::class, 'processed_by'); }
 }

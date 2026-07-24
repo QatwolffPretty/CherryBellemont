@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Refund;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as DompdfDocument;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,18 @@ class OrderDocumentService
     public function packingSlip(Order $order): DompdfDocument
     {
         return Pdf::loadView('pdf.packing-slip', $this->documentData($order))
+            ->setPaper('a4')
+            ->setOptions(['isRemoteEnabled' => false, 'defaultFont' => 'DejaVu Sans']);
+    }
+
+    public function creditNote(Refund $refund): DompdfDocument
+    {
+        $refund->loadMissing('order.items.product', 'returnRequest.items');
+        $data = $this->documentData($refund->order);
+        $data['refund'] = $refund;
+        $data['creditNoteNumber'] = 'CN-'.str_replace('RFD-', '', $refund->refund_number);
+
+        return Pdf::loadView('pdf.credit-note', $data)
             ->setPaper('a4')
             ->setOptions(['isRemoteEnabled' => false, 'defaultFont' => 'DejaVu Sans']);
     }

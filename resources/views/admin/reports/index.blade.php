@@ -26,8 +26,12 @@
                     <x-admin.stats-card label="Discounts issued" :value="'RM '.number_format($report['sales']['discounts'], 2)" />
                     <x-admin.stats-card label="Shipping revenue" :value="'RM '.number_format($report['sales']['shipping_revenue'], 2)" />
                     <x-admin.stats-card label="Net order revenue" :value="'RM '.number_format($report['sales']['net_order_revenue'], 2)" />
+                    <x-admin.stats-card label="Successful refunds" :value="'RM '.number_format($report['sales']['successful_refunds'], 2)" />
                     <x-admin.stats-card label="Paid orders" :value="$report['sales']['paid_orders']" />
                     <x-admin.stats-card label="Average order value" :value="'RM '.number_format($report['sales']['average_order_value'], 2)" />
+                    <x-admin.stats-card label="Gift orders" :value="$report['sales']['gift_orders']" />
+                    <x-admin.stats-card label="Gift wrapping revenue" :value="'RM '.number_format($report['sales']['gift_wrapping_revenue'], 2)" />
+                    <x-admin.stats-card label="Gift wrapping usage" :value="number_format($report['sales']['gift_wrapping_usage_rate'], 1).'%'" />
                 </div>
                 <div class="admin-chart-canvas mt-8"><canvas id="admin-reports-revenue-chart" aria-label="Paid revenue trend" role="img"></canvas></div>
                 <div class="mt-6 flex justify-end"><x-admin.button variant="outline" :href="$exportUrl('sales')" icon="bi-download">Export sales CSV</x-admin.button></div>
@@ -178,6 +182,20 @@
                 <div class="mt-6 flex justify-end"><x-admin.button variant="outline" :href="$exportUrl('newsletter')" icon="bi-download">Export newsletter CSV</x-admin.button></div>
             </x-admin.card>
         </div>
+
+        <x-admin.card title="Returns & refunds" class="mt-8">
+            <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <x-admin.stats-card label="Requests" :value="$report['returns']['requests']" />
+                <x-admin.stats-card label="Pending review" :value="$report['returns']['pending_review']" />
+                <x-admin.stats-card label="Awaiting return" :value="$report['returns']['awaiting_return']" />
+                <x-admin.stats-card label="Completed / closed" :value="$report['returns']['completed']" />
+                <x-admin.stats-card label="Refunds processing" :value="$report['returns']['refund_processing']" />
+                <x-admin.stats-card label="Failed refunds" :value="$report['returns']['refund_failed']" />
+                <x-admin.stats-card label="Confirmed refunds" :value="'RM '.number_format($report['returns']['refund_succeeded'], 2)" />
+            </div>
+            <div class="mt-6 flex justify-end"><x-admin.button variant="outline" :href="$exportUrl('returns')" icon="bi-download">Export returns CSV</x-admin.button></div>
+            <p class="mt-4 text-sm text-cream/60">Net order revenue subtracts successful refunds confirmed in the selected period. Shipping and gift wrapping refunds are excluded unless an administrator explicitly recorded them.</p>
+        </x-admin.card>
 
         <x-admin.card title="Top customers by paid spend" class="mt-8">
             <x-admin.table class="mt-6"><x-slot:head><tr><th>Customer</th><th>Paid orders</th><th>Paid spend</th></tr></x-slot:head>

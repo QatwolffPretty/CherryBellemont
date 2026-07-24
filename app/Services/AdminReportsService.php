@@ -8,6 +8,8 @@ use App\Models\NewsletterSubscriber;
 use App\Models\Order;
 use App\Models\PaymentReceipt;
 use App\Models\Product;
+use App\Models\Refund;
+use App\Models\ReturnRequest;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -42,6 +44,7 @@ class AdminReportsService
                 'coupons' => $this->couponSummary($period),
                 'inventory' => $this->inventorySummary($period),
                 'newsletter' => $this->newsletterSummary($period),
+                'returns' => $this->returnSummary($period),
             ];
         });
 
@@ -76,8 +79,8 @@ class AdminReportsService
         return match ($report) {
             'sales' => [
                 'filename' => 'cherry-bellemont-sales-report.csv',
-                'headings' => ['Date', 'Gross Paid Revenue', 'Discounts', 'Shipping Revenue', 'Net Order Revenue', 'Paid Orders'],
-                'rows' => $this->revenueTrend($period)['rows']->map(fn (array $row) => [$row['date'], $row['gross'], $row['discount'], $row['shipping'], $row['revenue'], $row['order_count']]),
+                'headings' => ['Date', 'Gross Paid Revenue', 'Discounts', 'Shipping Revenue', 'Gift Wrapping Revenue', 'Net Order Revenue', 'Paid Orders'],
+                'rows' => $this->revenueTrend($period)['rows']->map(fn (array $row) => [$row['date'], $row['gross'], $row['discount'], $row['shipping'], $row['gift_wrapping'], $row['revenue'], $row['order_count']]),
             ],
             'orders' => [
                 'filename' => 'cherry-bellemont-orders-report.csv',
@@ -125,6 +128,11 @@ class AdminReportsService
                     ->cursor()
                     ->map(fn (NewsletterSubscriber $subscriber) => [$subscriber->email, $subscriber->name, $subscriber->status, $subscriber->source, optional($subscriber->subscribed_at)->toDateTimeString(), optional($subscriber->unsubscribed_at)->toDateTimeString()]),
             ],
+            'returns' => [
+                'filename' => 'cherry-bellemont-returns-report.csv',
+                'headings' => ['Return Number', 'Order Number', 'Customer', 'Type', 'Status', 'Requested At', 'Refunded Amount'],
+                'rows' => ReturnRequest::query()->with('order:id,order_number')->whereBetween('requested_at', [$period['start'], $period['end']])->latest('requested_at')->cursor()->map(fn (ReturnRequest $return) => [$return->return_number, $return->order?->order_number, $return->customer_email, $return->request_type, $return->status, optional($return->requested_at)->toDateTimeString(), (float) $return->refunds()->where('status', 'succeeded')->sum('amount')]),
+            ],
             default => throw new \InvalidArgumentException('Unknown report export.'),
         };
     }
@@ -157,15 +165,22 @@ class AdminReportsService
     {
         $paid = $this->within($this->paidNonCancelledOrders(), $period);
         $paidCount = (clone $paid)->count();
-        $net = (float) (clone $paid)->sum('total');
+        $grossNet = (float) (clone $paid)->sum('total');
+        $refunds = (float) Refund::query()->where('status', 'succeeded')->whereBetween('confirmed_at', [$period['start'], $period['end']])->sum('amount');
+        $net = max(0, $grossNet - $refunds);
+        $giftOrders = (clone $paid)->where('gift_wrapping', true)->count();
 
         return [
             'gross_paid_revenue' => (float) (clone $paid)->sum('subtotal'),
             'discounts' => (float) (clone $paid)->sum(DB::raw('COALESCE(discount_amount, 0) + COALESCE(free_shipping_discount, 0)')),
             'shipping_revenue' => (float) (clone $paid)->sum('shipping_fee'),
             'net_order_revenue' => $net,
+            'successful_refunds' => $refunds,
             'paid_orders' => $paidCount,
             'average_order_value' => $paidCount > 0 ? $net / $paidCount : 0.0,
+            'gift_orders' => $giftOrders,
+            'gift_wrapping_revenue' => (float) (clone $paid)->sum('gift_wrapping_fee'),
+            'gift_wrapping_usage_rate' => $paidCount > 0 ? ($giftOrders / $paidCount) * 100 : 0.0,
             'refunded_orders' => $this->within(Order::query()->where('payment_status', 'refunded'), $period)->count(),
         ];
     }
@@ -296,10 +311,27 @@ class AdminReportsService
     }
 
     /** @param array{start: CarbonImmutable, end: CarbonImmutable} $period */
+    private function returnSummary(array $period): array
+    {
+        $requests = ReturnRequest::query()->whereBetween('requested_at', [$period['start'], $period['end']]);
+        $refunds = Refund::query()->whereBetween('requested_at', [$period['start'], $period['end']]);
+
+        return [
+            'requests' => (clone $requests)->count(),
+            'pending_review' => (clone $requests)->whereIn('status', ['requested', 'under_review'])->count(),
+            'awaiting_return' => (clone $requests)->where('status', 'awaiting_return')->count(),
+            'completed' => (clone $requests)->whereIn('status', ['completed', 'closed'])->count(),
+            'refund_processing' => (clone $refunds)->whereIn('status', ['pending', 'processing'])->count(),
+            'refund_failed' => (clone $refunds)->where('status', 'failed')->count(),
+            'refund_succeeded' => (float) (clone $refunds)->where('status', 'succeeded')->sum('amount'),
+        ];
+    }
+
+    /** @param array{start: CarbonImmutable, end: CarbonImmutable} $period */
     private function revenueTrend(array $period): array
     {
         $rows = $this->within($this->paidNonCancelledOrders(), $period)
-            ->selectRaw('DATE(created_at) as order_date, COALESCE(SUM(subtotal), 0) as gross, COALESCE(SUM(COALESCE(discount_amount, 0) + COALESCE(free_shipping_discount, 0)), 0) as discount, COALESCE(SUM(shipping_fee), 0) as shipping, COALESCE(SUM(total), 0) as revenue, COUNT(*) as order_count')
+            ->selectRaw('DATE(created_at) as order_date, COALESCE(SUM(subtotal), 0) as gross, COALESCE(SUM(COALESCE(discount_amount, 0) + COALESCE(free_shipping_discount, 0)), 0) as discount, COALESCE(SUM(shipping_fee), 0) as shipping, COALESCE(SUM(gift_wrapping_fee), 0) as gift_wrapping, COALESCE(SUM(total), 0) as revenue, COUNT(*) as order_count')
             ->groupBy('order_date')
             ->orderBy('order_date')
             ->get()
@@ -313,6 +345,7 @@ class AdminReportsService
                 'gross' => (float) ($row->gross ?? 0),
                 'discount' => (float) ($row->discount ?? 0),
                 'shipping' => (float) ($row->shipping ?? 0),
+                'gift_wrapping' => (float) ($row->gift_wrapping ?? 0),
                 'revenue' => (float) ($row->revenue ?? 0),
                 'order_count' => (int) ($row->order_count ?? 0),
             ];

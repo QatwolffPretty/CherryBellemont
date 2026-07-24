@@ -1,4 +1,5 @@
 @php($pendingReceiptCount = \App\Models\PaymentReceipt::query()->where('status', 'pending')->count())
+@php($pendingReturnCount = \App\Models\ReturnRequest::query()->whereIn('status', ['requested', 'under_review'])->count())
 <!doctype html>
 <html lang="en">
 <head>
@@ -25,6 +26,7 @@
                 <a class="admin-nav {{ request()->routeIs('admin.product-stock-notifications.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.product-stock-notifications.index') }}"><i class="bi bi-bell"></i> Back-in-Stock</a>
                 <a class="admin-nav {{ request()->routeIs('admin.reviews.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.reviews.index') }}"><i class="bi bi-chat-square-quote"></i> Reviews</a>
                 <a class="admin-nav {{ request()->routeIs('admin.orders.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.orders.index') }}"><i class="bi bi-handbag-fill"></i> Orders</a>
+                <a class="admin-nav {{ request()->routeIs('admin.returns.*', 'admin.refunds.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.returns.index') }}"><i class="bi bi-arrow-repeat"></i> Returns &amp; Refunds @if($pendingReturnCount)<span class="ml-auto bg-gold px-2 py-0.5 text-xs text-wine">{{ $pendingReturnCount }}</span>@endif</a>
                 <a class="admin-nav {{ request()->routeIs('admin.payment-receipts.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.payment-receipts.index') }}"><i class="bi bi-credit-card"></i> Payment Verification @if($pendingReceiptCount)<span class="ml-auto rounded-full bg-gold px-2 py-0.5 text-xs text-wine">{{ $pendingReceiptCount }}</span>@endif</a>
                 <a class="admin-nav {{ request()->routeIs('admin.shipping-zones.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.shipping-zones.index') }}"><i class="bi bi-geo-alt"></i> Shipping Zones</a>
                 <a class="admin-nav {{ request()->routeIs('admin.delivery-methods.*') ? 'admin-nav-active' : '' }}" href="{{ route('admin.delivery-methods.index') }}"><i class="bi bi-truck"></i> Delivery Methods</a>

@@ -10,6 +10,8 @@ use App\Models\Order;
 use App\Models\PaymentReceipt;
 use App\Models\Product;
 use App\Models\Review;
+use App\Models\Refund;
+use App\Models\ReturnRequest;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -122,6 +124,10 @@ class AdminAnalyticsService
             ['label' => 'Sent Campaigns', 'value' => NewsletterCampaign::query()->sent()->count(), 'href' => route('admin.newsletter.campaigns.index', ['status' => 'sent'])],
             ['label' => 'Latest Campaign', 'value' => $this->latestCampaignName(), 'href' => route('admin.newsletter.campaigns.index')],
             ['label' => 'Pending Reviews', 'value' => Review::query()->where('status', 'pending')->count(), 'href' => route('admin.reviews.index', ['status' => 'pending']), 'accent' => true],
+            ['label' => 'Pending Returns', 'value' => ReturnRequest::query()->whereIn('status', ['requested', 'under_review'])->count(), 'href' => route('admin.returns.index', ['status' => 'requested']), 'accent' => true],
+            ['label' => 'Returns Awaiting Inspection', 'value' => ReturnRequest::query()->whereIn('status', ['item_received', 'inspecting'])->count(), 'href' => route('admin.returns.index', ['status' => 'inspecting'])],
+            ['label' => 'Refunds Processing', 'value' => Refund::query()->whereIn('status', ['pending', 'processing'])->count(), 'href' => route('admin.returns.index')],
+            ['label' => 'Refunds Failed', 'value' => Refund::query()->where('status', 'failed')->count(), 'href' => route('admin.returns.index')],
         ];
     }
 
@@ -267,6 +273,12 @@ class AdminAnalyticsService
         });
         NewsletterSubscriber::query()->subscribed()->latest('subscribed_at')->limit(6)->get()->each(function (NewsletterSubscriber $subscriber) use ($activity): void {
             $activity->push($this->activity('bi-envelope-paper', 'New newsletter subscriber', 'Cherry Bellemont list', $subscriber->subscribed_at ?: $subscriber->created_at));
+        });
+        ReturnRequest::query()->latest('requested_at')->limit(6)->get()->each(function (ReturnRequest $return) use ($activity): void {
+            $activity->push($this->activity('bi-arrow-repeat', 'Return request submitted', $return->return_number, $return->requested_at ?: $return->created_at));
+        });
+        Refund::query()->where('status', 'succeeded')->latest('confirmed_at')->limit(6)->get()->each(function (Refund $refund) use ($activity): void {
+            $activity->push($this->activity('bi-arrow-counterclockwise', 'Refund confirmed', $refund->refund_number, $refund->confirmed_at ?: $refund->updated_at));
         });
 
         return $activity

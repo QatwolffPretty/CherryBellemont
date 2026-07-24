@@ -29,6 +29,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $pageTitle }}</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/Cherry Red No BG.png') }}">
     <meta name="description" content="{{ $description }}">
     <meta name="robots" content="{{ $robots }}">
     @if($canonicalUrl)<link rel="canonical" href="{{ $canonicalUrl }}">@endif

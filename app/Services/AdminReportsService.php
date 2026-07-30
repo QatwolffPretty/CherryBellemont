@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Coupon;
 use App\Models\CouponUsage;
+use App\Models\Category;
 use App\Models\NewsletterSubscriber;
 use App\Models\Order;
 use App\Models\PaymentReceipt;
@@ -46,6 +47,7 @@ class AdminReportsService
                 'payments' => $this->payments($period),
                 'coupons' => $this->couponSummary($period),
                 'inventory' => $this->inventorySummary($period),
+                'catalogue' => $this->catalogueSummary($period),
                 'newsletter' => $this->newsletterSummary($period),
                 'returns' => $this->returnSummary($period),
                 'shipments' => $this->shipmentSummary($period),
@@ -93,8 +95,8 @@ class AdminReportsService
             ],
             'products' => [
                 'filename' => 'cherry-bellemont-products-report.csv',
-                'headings' => ['Product', 'Units Sold', 'Paid Revenue', 'Current Stock'],
-                'rows' => $this->productSales($period)->map(fn (object $row) => [$row->product_name, (int) $row->units_sold, (float) $row->paid_revenue, $row->stock]),
+                'headings' => ['Product', 'Primary Category', 'Categories', 'Sizes', 'Colours', 'Collection Tags', 'Units Sold', 'Paid Revenue', 'Current Stock'],
+                'rows' => $this->productSales($period)->map(fn (object $row) => [$row->product_name, $row->primary_category, $row->categories, $row->sizes, $row->colours, $row->tags, (int) $row->units_sold, (float) $row->paid_revenue, $row->stock]),
             ],
             'payments' => [
                 'filename' => 'cherry-bellemont-payments-report.csv',
@@ -309,6 +311,41 @@ class AdminReportsService
     }
 
     /** @param array{start: CarbonImmutable, end: CarbonImmutable} $period */
+    private function catalogueSummary(array $period): array
+    {
+        $sales = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('category_product', function ($join): void {
+                $join->on('category_product.product_id', '=', 'order_items.product_id')->where('category_product.is_primary', true);
+            })
+            ->leftJoin('categories', 'categories.id', '=', 'category_product.category_id')
+            ->where('orders.payment_status', 'paid')
+            ->where(fn ($query) => $query->whereNull('orders.order_status')->orWhere('orders.order_status', '!=', 'cancelled'))
+            ->whereBetween('orders.created_at', [$period['start'], $period['end']])
+            ->selectRaw("COALESCE(categories.name, 'Uncategorised') as category_name, SUM(order_items.quantity) as units_sold, SUM(COALESCE(order_items.line_total, order_items.total, 0)) as paid_revenue")
+            ->groupBy('category_name')
+            ->orderByDesc('paid_revenue')
+            ->get()
+            ->map(fn (object $row): array => ['name' => $row->category_name, 'units_sold' => (int) $row->units_sold, 'paid_revenue' => (float) $row->paid_revenue]);
+
+        $lowStock = Product::query()
+            ->with('primaryCategory:id,name')
+            ->where('stock', '<=', $this->lowStockThreshold())
+            ->orderBy('stock')
+            ->limit(10)
+            ->get(['id', 'name', 'stock'])
+            ->map(fn (Product $product): array => ['name' => $product->name, 'stock' => $product->stock, 'category' => $product->primaryCategory->first()?->name ?: 'Uncategorised']);
+
+        return [
+            'products_by_category' => Category::query()->active()->withCount('products')->ordered()->get(['id', 'name'])->map(fn (Category $category): array => ['name' => $category->name, 'products' => $category->products_count]),
+            'sales_by_category' => $sales,
+            'top_selling_category' => $sales->first(),
+            'products_missing_category' => Product::query()->doesntHave('categories')->count(),
+            'low_stock_by_category' => $lowStock,
+        ];
+    }
+
+    /** @param array{start: CarbonImmutable, end: CarbonImmutable} $period */
     private function newsletterSummary(array $period): array
     {
         return [
@@ -450,11 +487,21 @@ class AdminReportsService
             ->selectRaw('order_items.product_id, MAX(COALESCE(order_items.product_name, order_items.name)) as product_name, SUM(order_items.quantity) as units_sold, SUM(COALESCE(order_items.line_total, order_items.total, 0)) as paid_revenue')
             ->groupBy('order_items.product_id')
             ->get();
-        $products = Product::query()->whereIn('id', $rows->pluck('product_id')->filter()->all())->get(['id', 'name', 'stock'])->keyBy('id');
+        $products = Product::query()
+            ->with(['categories:id,name', 'primaryCategory:id,name', 'sizes:id,name', 'colours:id,name', 'tags:id,name'])
+            ->whereIn('id', $rows->pluck('product_id')->filter()->all())
+            ->get(['id', 'name', 'stock'])
+            ->keyBy('id');
 
         return $rows->map(function (object $row) use ($products): object {
-            $row->product_name = $products->get($row->product_id)?->name ?: $row->product_name ?: 'Cherry Bellemont item';
-            $row->stock = $products->get($row->product_id)?->stock;
+            $product = $products->get($row->product_id);
+            $row->product_name = $product?->name ?: $row->product_name ?: 'Cherry Bellemont item';
+            $row->stock = $product?->stock;
+            $row->primary_category = $product?->primaryCategory->first()?->name ?: 'Uncategorised';
+            $row->categories = $product?->categories->pluck('name')->implode(', ') ?: '';
+            $row->sizes = $product?->sizes->pluck('name')->implode(', ') ?: '';
+            $row->colours = $product?->colours->pluck('name')->implode(', ') ?: '';
+            $row->tags = $product?->tags->pluck('name')->implode(', ') ?: '';
             $row->units_sold = (int) $row->units_sold;
             $row->paid_revenue = (float) $row->paid_revenue;
 

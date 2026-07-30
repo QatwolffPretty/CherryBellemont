@@ -57,4 +57,5 @@ class Order extends Model
     public function refunds(): HasMany { return $this->hasMany(Refund::class); }
     public function shipments(): HasMany { return $this->hasMany(Shipment::class); }
     public function latestShipment(): HasOne { return $this->hasOne(Shipment::class)->latestOfMany(); }
+    public function journalEntryLines(): HasMany { return $this->hasMany(JournalEntryLine::class); }
 }

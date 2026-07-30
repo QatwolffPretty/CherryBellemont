@@ -39,10 +39,10 @@
                 <x-admin.card title="Order items">
                     @foreach($order->items as $item)
                         <div class="mt-5 flex gap-4 border-b border-cream/15 pb-4">
-                            @if($item->product && $item->product->image_path)
-                                <img class="h-20 w-16 object-cover" src="{{ asset('storage/'.$item->product->image_path) }}" alt="{{ $item->product_name ?? $item->name }}">
+                            @if($item->product?->primaryImagePath())
+                                <img class="h-20 w-16 object-cover" src="{{ asset('storage/'.$item->product->primaryImagePath()) }}" alt="{{ $item->product_name ?? $item->name }}">
                             @endif
-                            <div class="flex-1"><p>{{ $item->product_name ?? $item->name }} &times; {{ $item->quantity }}</p><p class="text-gold">RM {{ number_format($item->line_total ?? $item->total, 2) }}</p></div>
+                            <div class="flex-1"><p>{{ $item->product_name ?? $item->name }} &times; {{ $item->quantity }}</p>@if($item->variant_description)<p class="mt-1 text-sm text-cream/65">{{ $item->variant_description }}@if($item->sku) · SKU: {{ $item->sku }}@endif</p>@endif<p class="text-gold">RM {{ number_format($item->line_total ?? $item->total, 2) }}</p></div>
                         </div>
                     @endforeach
                     <p class="mt-5">Subtotal <span class="float-right">RM {{ number_format($order->subtotal, 2) }}</span></p>

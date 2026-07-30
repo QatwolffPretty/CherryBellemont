@@ -7,12 +7,15 @@ use App\Models\Refund;
 use App\Models\ReturnRequest;
 use App\Models\ReturnRequestEvent;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RefundService
 {
+    public function __construct(private readonly AccountingPostingService $accounting) {}
+
     public function confirm(Refund $refund): Refund
     {
-        return DB::transaction(function () use ($refund): Refund {
+        $confirmed = DB::transaction(function () use ($refund): Refund {
             $refund = Refund::query()->lockForUpdate()->findOrFail($refund->id);
             if ($refund->status === 'succeeded') return $refund;
             $order = Order::query()->lockForUpdate()->findOrFail($refund->order_id);
@@ -29,6 +32,11 @@ class RefundService
             }
             return $refund->fresh(['order', 'returnRequest']);
         }, 3);
+        $post = function () use ($confirmed): void {
+            try { $this->accounting->postCompletedRefund($confirmed); } catch (\Throwable $exception) { Log::error('Completed refund could not be posted to accounting.', ['refund_number' => $confirmed->refund_number, 'exception_class' => $exception::class]); }
+        };
+        if (DB::transactionLevel() > 0) DB::afterCommit($post); else $post();
+        return $confirmed;
     }
 
     public function fail(Refund $refund, string $reason): Refund

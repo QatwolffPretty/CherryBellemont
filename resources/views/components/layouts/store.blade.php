@@ -6,6 +6,7 @@
     'robots' => null,
 ])
 @inject('settings', '\\App\\Services\\SettingsService')
+@inject('cart', '\\App\\Services\\Cart')
 
 @php
     $companyName = $settings->get('store.company_name', config('store.company_name'));
@@ -66,7 +67,7 @@
                 <div class="flex items-center gap-[18px]">
                     <a class="nav-icon relative" href="{{ route('cart.index') }}" aria-label="Shopping Bag" data-bs-toggle="tooltip" data-bs-title="Shopping Bag">
                         <i class="bi bi-handbag-fill" aria-hidden="true"></i>
-                        <span class="cart-count" aria-live="polite">{{ array_sum(session('cart', [])) }}</span>
+                        <span class="cart-count" aria-live="polite">{{ $cart->count() }}</span>
                     </a>
                     @auth
                         <a class="nav-icon" href="{{ auth()->user()->is_admin ? route('admin.dashboard') : route('dashboard') }}" aria-label="Account" data-bs-toggle="tooltip" data-bs-title="Account">

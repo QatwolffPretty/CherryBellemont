@@ -21,4 +21,7 @@ class User extends Authenticatable
     public function settingsAuditLogs(): HasMany { return $this->hasMany(SettingAuditLog::class, 'changed_by'); }
     public function createdShipments(): HasMany { return $this->hasMany(Shipment::class, 'created_by'); }
     public function shipmentAuditLogs(): HasMany { return $this->hasMany(ShipmentAuditLog::class, 'admin_id'); }
+    public function createdJournalEntries(): HasMany { return $this->hasMany(JournalEntry::class, 'created_by'); }
+    public function postedJournalEntries(): HasMany { return $this->hasMany(JournalEntry::class, 'posted_by'); }
+    public function accountingAuditLogs(): HasMany { return $this->hasMany(AccountingAuditLog::class); }
 }

@@ -12,11 +12,12 @@
 
         <x-admin.table class="mt-8">
             <x-slot:head>
-                <tr><th>Piece</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr>
+                <tr><th>Piece</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr>
             </x-slot:head>
             @forelse($products as $product)
                 <tr>
                     <td>{{ $product->name }}</td>
+                    <td>{{ $product->primaryCategory->first()?->name ?: 'Uncategorised' }}</td>
                     <td>RM {{ number_format($product->price, 2) }}</td>
                     <td><x-admin.badge :status="$product->stock <= 5 ? 'low_stock' : 'in_stock'" :label="$product->stock" /></td>
                     <td><x-admin.badge :status="$product->status" /></td>
@@ -30,7 +31,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5"><x-admin.empty-state title="No products match this view." description="Add a new piece or adjust the selected catalogue filter." icon="bi-box-seam" /></td></tr>
+                <tr><td colspan="6"><x-admin.empty-state title="No products match this view." description="Add a new piece or adjust the selected catalogue filter." icon="bi-box-seam" /></td></tr>
             @endforelse
         </x-admin.table>
 

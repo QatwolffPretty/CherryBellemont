@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateOrderFulfilmentRequest;
 use App\Models\DeliveryMethod;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\AdminNotificationService;
 use App\Services\OrderDocumentService;
 use App\Services\OrderNotifier;
@@ -78,6 +79,9 @@ class OrderController extends Controller
                 foreach ($order->items as $item) {
                     if ($item->product_id && ($product = Product::lockForUpdate()->find($item->product_id))) {
                         $previousStock = (int) $product->stock;
+                        if ($item->product_variant_id && ($variant = ProductVariant::query()->lockForUpdate()->find($item->product_variant_id))) {
+                            $variant->increment('stock', $item->quantity);
+                        }
                         $product->increment('stock', $item->quantity);
                         if ($previousStock === 0) {
                             $restockedProductIds[] = $product->id;

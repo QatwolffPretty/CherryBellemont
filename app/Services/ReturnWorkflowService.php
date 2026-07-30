@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\ReturnRequest;
 use App\Models\ReturnRequestEvent;
 use App\Models\User;
@@ -44,7 +45,7 @@ class ReturnWorkflowService
     {
         $restocked = [];
         $updated = DB::transaction(function () use ($request, $actor, $items, $passed, $note, &$restocked): ReturnRequest {
-            $request = ReturnRequest::query()->with('items')->lockForUpdate()->findOrFail($request->id);
+            $request = ReturnRequest::query()->with('items.orderItem')->lockForUpdate()->findOrFail($request->id);
             if ($request->status !== 'inspecting') throw ValidationException::withMessages(['status' => 'Only requests under inspection can be completed.']);
             foreach ($request->items as $returnItem) {
                 $data = $items[$returnItem->id] ?? null;
@@ -53,7 +54,17 @@ class ReturnWorkflowService
                 $returnItem->update(['condition_received' => $data['condition_received'] ?? null, 'inspection_notes' => $data['inspection_notes'] ?? null, 'stock_disposition' => $disposition]);
                 if ($passed && $disposition === 'restocked' && ! $returnItem->restocked_at && $returnItem->product_id) {
                     $product = Product::query()->lockForUpdate()->find($returnItem->product_id);
-                    if ($product) { $previous = (int) $product->stock; $product->increment('stock', (int) ($returnItem->approved_quantity ?? 0)); $returnItem->update(['restocked_at' => now()]); $restocked[] = [$product->id, $previous]; }
+                    if ($product) {
+                        $quantity = (int) ($returnItem->approved_quantity ?? 0);
+                        $previous = (int) $product->stock;
+                        $variantId = $returnItem->orderItem?->product_variant_id;
+                        if ($variantId && ($variant = ProductVariant::query()->lockForUpdate()->find($variantId))) {
+                            $variant->increment('stock', $quantity);
+                        }
+                        $product->increment('stock', $quantity);
+                        $returnItem->update(['restocked_at' => now()]);
+                        $restocked[] = [$product->id, $previous];
+                    }
                 }
             }
             return $this->transition($request, $passed ? 'resolution_pending' : 'inspection_failed', $actor, $note);

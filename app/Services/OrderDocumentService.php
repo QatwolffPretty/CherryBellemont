@@ -56,7 +56,9 @@ class OrderDocumentService
             'quantity' => (int) $item->quantity,
             'unit_price' => (float) $item->unit_price,
             'line_total' => (float) ($item->line_total ?? $item->total ?? 0),
-            'image' => $this->storedImageDataUri($item->product?->image_path),
+            'image' => $this->storedImageDataUri($item->product?->primaryImagePath()),
+            'sku' => $item->sku,
+            'variant_description' => $item->variant_description ?: collect([$item->colour_name, $item->size_name])->filter()->implode(' / '),
         ]);
 
         $isPickup = filled($order->pickup_location);

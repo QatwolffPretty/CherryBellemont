@@ -72,7 +72,7 @@ class StripeCheckoutService
                 'price_data' => [
                     'currency' => $this->currency(),
                     'unit_amount' => $this->amountInSen($item->unit_price),
-                    'product_data' => ['name' => $item->product_name ?? $item->name],
+                    'product_data' => ['name' => ($item->product_name ?? $item->name).($item->variant_description ? ' — '.$item->variant_description : '')],
                 ],
                 'quantity' => $item->quantity,
             ];

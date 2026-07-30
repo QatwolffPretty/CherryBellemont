@@ -75,7 +75,7 @@
             <thead><tr><th>Item</th><th class="right">Quantity</th><th class="right">Unit price</th><th class="right">Line total</th></tr></thead>
             <tbody>
                 @foreach($items as $item)
-                    <tr><td>{{ $item['name'] }}</td><td class="right">{{ $item['quantity'] }}</td><td class="right">RM {{ number_format($item['unit_price'], 2) }}</td><td class="right">RM {{ number_format($item['line_total'], 2) }}</td></tr>
+                    <tr><td>{{ $item['name'] }}@if($item['variant_description'])<br><span class="muted">{{ $item['variant_description'] }}@if($item['sku']) · {{ $item['sku'] }}@endif</span>@endif</td><td class="right">{{ $item['quantity'] }}</td><td class="right">RM {{ number_format($item['unit_price'], 2) }}</td><td class="right">RM {{ number_format($item['line_total'], 2) }}</td></tr>
                 @endforeach
             </tbody>
         </table>

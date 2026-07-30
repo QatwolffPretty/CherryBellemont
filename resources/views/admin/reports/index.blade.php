@@ -160,6 +160,48 @@
             </x-admin.card>
         </div>
 
+        <x-admin.card title="Category performance" class="mt-8">
+            <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <x-admin.stats-card label="Products missing a category" :value="$report['catalogue']['products_missing_category']" />
+                <x-admin.stats-card label="Top-selling category" :value="$report['catalogue']['top_selling_category']['name'] ?? 'No paid category sales'" />
+                <x-admin.stats-card label="Top category units" :value="$report['catalogue']['top_selling_category']['units_sold'] ?? 0" />
+                <x-admin.stats-card label="Top category revenue" :value="'RM '.number_format($report['catalogue']['top_selling_category']['paid_revenue'] ?? 0, 2)" />
+            </div>
+            <div class="mt-8 grid gap-6 xl:grid-cols-2">
+                <div>
+                    <p class="text-sm text-cream/60">Products by category</p>
+                    <x-admin.table class="mt-3">
+                        <x-slot:head><tr><th>Category</th><th>Products</th></tr></x-slot:head>
+                        @forelse($report['catalogue']['products_by_category'] as $category)
+                            <tr><td>{{ $category['name'] }}</td><td>{{ $category['products'] }}</td></tr>
+                        @empty
+                            <tr><td colspan="2" class="text-cream/60">No categories available.</td></tr>
+                        @endforelse
+                    </x-admin.table>
+                </div>
+                <div>
+                    <p class="text-sm text-cream/60">Paid sales by primary category</p>
+                    <x-admin.table class="mt-3">
+                        <x-slot:head><tr><th>Category</th><th>Units</th><th>Revenue</th></tr></x-slot:head>
+                        @forelse($report['catalogue']['sales_by_category'] as $category)
+                            <tr><td>{{ $category['name'] }}</td><td>{{ $category['units_sold'] }}</td><td>RM {{ number_format($category['paid_revenue'], 2) }}</td></tr>
+                        @empty
+                            <tr><td colspan="3" class="text-cream/60">No paid category sales in this period.</td></tr>
+                        @endforelse
+                    </x-admin.table>
+                </div>
+            </div>
+            <p class="mt-6 text-sm text-cream/60">Low-stock products are still tracked at product level; colour and size assignments do not create separate inventory balances.</p>
+            <x-admin.table class="mt-4">
+                <x-slot:head><tr><th>Low-stock product</th><th>Primary category</th><th>Stock</th></tr></x-slot:head>
+                @forelse($report['catalogue']['low_stock_by_category'] as $product)
+                    <tr><td>{{ $product['name'] }}</td><td>{{ $product['category'] }}</td><td>{{ $product['stock'] }}</td></tr>
+                @empty
+                    <tr><td colspan="3" class="text-cream/60">No low-stock products.</td></tr>
+                @endforelse
+            </x-admin.table>
+        </x-admin.card>
+
         <div class="mt-8 grid gap-6 xl:grid-cols-2">
             <x-admin.card title="Coupons">
                 <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
@@ -31,6 +32,17 @@ class SitemapController extends Controller
                     $entries[] = [
                         'url' => route('products.show', $product),
                         'lastmod' => $product->updated_at,
+                    ];
+                });
+
+            Category::query()
+                ->active()
+                ->orderBy('id')
+                ->cursor()
+                ->each(function (Category $category) use (&$entries): void {
+                    $entries[] = [
+                        'url' => route('collection.category', ['slug' => $category->slug]),
+                        'lastmod' => $category->updated_at,
                     ];
                 });
 

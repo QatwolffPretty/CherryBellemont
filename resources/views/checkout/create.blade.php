@@ -115,13 +115,13 @@
             @foreach($lines as $line)
                 <div class="mt-5 flex gap-3">
                     <div class="h-16 w-12 shrink-0 overflow-hidden bg-wine-deep">
-                        @if($line['product']->image_path)
-                            <img class="h-full w-full object-cover" src="{{ asset('storage/' . $line['product']->image_path) }}" alt="{{ $line['product']->name }}">
+                        @if($line['image_path'])
+                            <img class="h-full w-full object-cover" src="{{ asset('storage/' . $line['image_path']) }}" alt="{{ $line['product']->name }}">
                         @else
                             <div class="flex h-full items-center justify-center text-xs text-gold/70">CB</div>
                         @endif
                     </div>
-                    <div class="flex flex-1 justify-between gap-3"><span>{{ $line['product']->name }} &times; {{ $line['quantity'] }}</span><span class="text-gold">RM {{ number_format($line['line_total'] / 100, 2) }}</span></div>
+                    <div class="flex flex-1 justify-between gap-3"><span>{{ $line['product']->name }} @if($line['variant_description'])<small class="block text-cream/60">{{ $line['variant_description'] }}@if($line['sku']) &middot; {{ $line['sku'] }}@endif</small>@endif &times; {{ $line['quantity'] }}</span><span class="text-gold">RM {{ number_format($line['line_total'] / 100, 2) }}</span></div>
                 </div>
             @endforeach
             <p class="mt-8 flex justify-between border-t border-cream/15 pt-5"><span>Subtotal</span><span>RM {{ number_format($subtotal / 100, 2) }}</span></p>

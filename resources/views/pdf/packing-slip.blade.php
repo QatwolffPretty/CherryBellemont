@@ -76,7 +76,7 @@
                 @foreach($items as $item)
                     <tr>
                         <td>@if($item['image'])<img class="thumb" src="{{ $item['image'] }}" alt="">@endif</td>
-                        <td>{{ $item['name'] }}<br><span class="muted">SKU: Not available</span></td>
+                        <td>{{ $item['name'] }}@if($item['variant_description'])<br><span class="muted">{{ $item['variant_description'] }}</span>@endif<br><span class="muted">SKU: {{ $item['sku'] ?: 'Not available' }}</span></td>
                         <td class="qty">{{ $item['quantity'] }}</td>
                         <td style="text-align:center;"><span class="check"></span></td>
                     </tr>

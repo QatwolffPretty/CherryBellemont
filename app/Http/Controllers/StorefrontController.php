@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
 use App\Models\Product;
+use App\Services\ProductCatalogueService;
 use App\Services\ReviewEligibility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -10,27 +12,64 @@ use Illuminate\View\View;
 
 class StorefrontController extends Controller
 {
-    public function home(): View { return view('storefront.home', ['featuredProducts' => Product::query()->where('status', 'active')->where('featured', true)->withCount('approvedReviews')->withAvg('approvedReviews as approved_reviews_avg_rating', 'rating')->take(3)->get()]); }
-    public function collection(Request $request): View
+    public function home(): View { return view('storefront.home', ['featuredProducts' => Product::query()->where('status', 'active')->where('featured', true)->with(['primaryImage'])->withCount(['approvedReviews', 'variants'])->withAvg('approvedReviews as approved_reviews_avg_rating', 'rating')->take(3)->get()]); }
+    public function collection(Request $request, ProductCatalogueService $catalogue): View
     {
-        $products = Product::query()->where('status', 'active')->withCount('approvedReviews')->withAvg('approvedReviews as approved_reviews_avg_rating', 'rating');
+        return $this->catalogueView($request, $catalogue);
+    }
 
-        if ($search = $request->string('search')->trim()->value()) {
-            $products->where(fn ($query) => $query->where('name', 'like', "%{$search}%")->orWhere('description', 'like', "%{$search}%"));
+    /**
+     * Keeps legacy /collection/{product-slug} links working while reserving active category slugs
+     * for their public landing pages. New product links use /collection/products/{slug}.
+     */
+    public function categoryOrLegacyProduct(Request $request, string $slug, ProductCatalogueService $catalogue, ReviewEligibility $eligibility): View
+    {
+        $category = Category::query()->active()->where('slug', $slug)->first();
+
+        if ($category) {
+            return $this->catalogueView($request, $catalogue, $category);
         }
 
-        match ($request->input('sort')) {
-            'price_asc' => $products->orderBy('price'),
-            'price_desc' => $products->orderByDesc('price'),
-            'featured' => $products->orderByDesc('featured')->latest(),
-            default => $products->latest(),
-        };
+        $product = Product::query()->where('slug', $slug)->firstOrFail();
 
-        return view('storefront.collection', ['products' => $products->paginate(12)->withQueryString()]);
+        return $this->show($request, $product, $eligibility);
+    }
+
+    private function catalogueView(Request $request, ProductCatalogueService $catalogue, ?Category $category = null): View
+    {
+        $filters = $catalogue->filters($request, $category);
+
+        return view('storefront.collection', [
+            'products' => $catalogue->products($filters),
+            'filters' => $filters,
+            'filterOptions' => $catalogue->options(),
+            'sortOptions' => ProductCatalogueService::SORTS,
+            'category' => $category,
+            'categoryStructuredData' => $category ? [
+                '@context' => 'https://schema.org',
+                '@type' => 'BreadcrumbList',
+                'itemListElement' => [
+                    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => route('home')],
+                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Collection', 'item' => route('collection')],
+                    ['@type' => 'ListItem', 'position' => 3, 'name' => $category->name, 'item' => route('collection.category', $category->slug)],
+                ],
+            ] : null,
+        ]);
     }
     public function show(Request $request, Product $product, ReviewEligibility $eligibility): View
     {
         abort_unless($product->status === 'active', 404);
+        $product->load([
+            'categories' => fn ($query) => $query->active()->ordered(),
+            'sizes' => fn ($query) => $query->active()->ordered(),
+            'colours' => fn ($query) => $query->active()->ordered(),
+            'tags' => fn ($query) => $query->active()->ordered(),
+            'productImages',
+            'primaryImage',
+            'variants',
+            'activeVariants.size',
+            'activeVariants.colour',
+        ]);
 
         $reviews = $product->approvedReviews()->with('images');
         if ($search = $request->string('review_search')->trim()->value()) {
@@ -67,6 +106,8 @@ class StorefrontController extends Controller
 
         return view('storefront.show', [
             'product' => $product,
+            'hasVariants' => $product->hasVariants(),
+            'availableStock' => $product->availableStock(),
             'reviews' => $reviews->paginate(10)->withQueryString(),
             'reviewStats' => $reviewStats,
             'ratingBreakdown' => $ratingBreakdown,
@@ -93,8 +134,8 @@ class StorefrontController extends Controller
             ],
         ];
 
-        if ($product->image_path) {
-            $data['image'] = asset('storage/'.$product->image_path);
+        if ($product->primaryImagePath()) {
+            $data['image'] = asset('storage/'.$product->primaryImagePath());
         }
 
         if ((int) $reviewStats->review_count > 0) {
@@ -102,6 +143,19 @@ class StorefrontController extends Controller
                 '@type' => 'AggregateRating',
                 'ratingValue' => number_format((float) $reviewStats->average_rating, 1, '.', ''),
                 'reviewCount' => (int) $reviewStats->review_count,
+            ];
+        }
+
+        $primaryCategory = $product->categories->first();
+        if ($primaryCategory) {
+            $data['breadcrumb'] = [
+                '@type' => 'BreadcrumbList',
+                'itemListElement' => [
+                    ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => route('home')],
+                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Collection', 'item' => route('collection')],
+                    ['@type' => 'ListItem', 'position' => 3, 'name' => $primaryCategory->name, 'item' => route('collection.category', ['slug' => $primaryCategory->slug])],
+                    ['@type' => 'ListItem', 'position' => 4, 'name' => $product->name, 'item' => route('products.show', $product)],
+                ],
             ];
         }
 

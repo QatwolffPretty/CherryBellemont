@@ -20,6 +20,7 @@ class StripeWebhookService
         private readonly AdminNotificationService $adminNotifier,
         private readonly RefundService $refunds,
         private readonly ReturnNotifier $returnNotifier,
+        private readonly AccountingPostingService $accounting,
     ) {}
 
     public function process(object $event, array $payload): void
@@ -73,6 +74,11 @@ class StripeWebhookService
         Log::info('Stripe webhook processed.', $this->context($event, $object, $approvedOrder, $approvedOrder ? 'payment completed' : 'no payment update required'));
 
         if ($approvedOrder) {
+            try {
+                $this->accounting->postPaidOrder($approvedOrder);
+            } catch (Throwable $exception) {
+                Log::error('Confirmed Stripe payment could not be posted to accounting.', ['order_number' => $approvedOrder->order_number, 'exception_class' => $exception::class]);
+            }
             $this->notifier->send($approvedOrder, 'payment_approved');
             $this->adminNotifier->send('stripe_payment_confirmed', ['order' => $approvedOrder]);
         }

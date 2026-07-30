@@ -78,6 +78,18 @@ select option[value=""] {
 .admin-nav:hover { background:rgba(212,175,55,.14); color:#D4AF37; }
 .admin-nav-active { background:#5B1E2D; color:#F8F4EF; }
 .admin-nav-active i { color:#D4AF37; }
+.admin-nav-group { border-radius:0; }
+.admin-nav-group-active { background:rgba(91,30,45,.72); color:#F8F4EF; }
+.admin-nav-group-active i { color:#D4AF37; }
+.admin-nav-summary { cursor:pointer; justify-content:space-between; list-style:none; }
+.admin-nav-summary::-webkit-details-marker { display:none; }
+.admin-nav-summary > span { display:flex; align-items:center; gap:.75rem; }
+.admin-nav-chevron { transition:transform .2s ease-out; }
+.admin-nav-group[open] .admin-nav-chevron { transform:rotate(180deg); }
+.admin-nav-children { display:grid; gap:.25rem; margin-top:.25rem; }
+.admin-nav-sub { min-width:0; padding-left:2.75rem; overflow-wrap:anywhere; }
+.admin-nav-group-nested { margin-left:.75rem; }
+.admin-nav-sub-nested { padding-left:3.5rem; }
 .admin-chart-canvas { position:relative; min-height:18rem; }
 .admin-chart-canvas canvas { max-width:100%; }
 

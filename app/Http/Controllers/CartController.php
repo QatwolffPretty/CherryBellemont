@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Services\Cart;
 use App\Services\CouponService;
 use Illuminate\Http\RedirectResponse;
@@ -35,35 +36,89 @@ class CartController extends Controller
     public function store(Request $request, Product $product, Cart $cart): RedirectResponse
     {
         abort_unless($product->status === 'active', 404);
-        $quantity = $request->validate(['quantity' => ['nullable', 'integer', 'min:1']])['quantity'] ?? 1;
-        $newQuantity = ($cart->contents()[$product->id] ?? 0) + $quantity;
+        $data = $request->validate([
+            'quantity' => ['nullable', 'integer', 'min:1'],
+            'variant_id' => ['nullable', 'integer'],
+            'size_id' => ['nullable', 'integer'],
+            'colour_id' => ['nullable', 'integer'],
+        ]);
+        $quantity = $data['quantity'] ?? 1;
+        $hasVariants = $product->variants()->exists();
+        $variant = null;
 
-        if ($newQuantity > $product->stock) {
-            return back()->withErrors(['quantity' => 'Only '.$product->stock.' of this piece are available.'])->withInput();
+        if ($hasVariants) {
+            $requiresSize = $product->variants()->whereNotNull('product_size_id')->exists();
+            $requiresColour = $product->variants()->whereNotNull('product_colour_id')->exists();
+            $selectionLabel = match (true) {
+                $requiresColour && $requiresSize => 'size and colour',
+                $requiresColour => 'colour',
+                default => 'size',
+            };
+
+            if (blank($data['variant_id'] ?? null)) {
+                return back()->withErrors(['variant' => 'Please choose a '.$selectionLabel.' before adding this piece.'])->withInput();
+            }
+
+            $variant = ProductVariant::query()
+                ->with(['size:id,name', 'colour:id,name'])
+                ->where('product_id', $product->id)
+                ->find($data['variant_id']);
+            if (! $variant || ! $variant->is_active) {
+                return back()->withErrors(['variant' => 'That product option is no longer available.'])->withInput();
+            }
+            if ($variant->product_size_id && (int) ($data['size_id'] ?? 0) !== $variant->product_size_id) {
+                return back()->withErrors(['size' => 'Please select a valid size.'])->withInput();
+            }
+            if ($variant->product_colour_id && (int) ($data['colour_id'] ?? 0) !== $variant->product_colour_id) {
+                return back()->withErrors(['colour' => 'Please select a valid colour.'])->withInput();
+            }
+        } elseif (filled($data['variant_id'] ?? null)) {
+            return back()->withErrors(['variant' => 'This piece does not use selectable options.'])->withInput();
         }
 
-        $cart->put($product->id, $newQuantity);
+        $cartKey = $cart->key($product->id, $variant?->id);
+        $newQuantity = (int) ($cart->line($cartKey)['quantity'] ?? 0) + $quantity;
+        $availableStock = $variant ? (int) $variant->stock : (int) $product->stock;
+
+        if ($newQuantity > $availableStock) {
+            return back()->withErrors(['quantity' => 'Only '.$availableStock.' of this option are available.'])->withInput();
+        }
+
+        $cart->put($product->id, $newQuantity, $variant?->id);
 
         return to_route('cart.index')->with('success', 'Piece added to your bag.');
     }
 
     public function update(Request $request, Product $product, Cart $cart): RedirectResponse
     {
-        $quantity = $request->validate(['quantity' => ['required', 'integer', 'min:1']])['quantity'];
+        $data = $request->validate(['quantity' => ['required', 'integer', 'min:1'], 'cart_key' => ['nullable', 'string', 'max:120']]);
+        $quantity = $data['quantity'];
         abort_unless($product->status === 'active', 404);
+        $cartKey = $data['cart_key'] ?? $cart->key($product->id);
+        $line = $cart->line($cartKey);
+        abort_unless($line && $line['product_id'] === $product->id, 404);
+        $variant = $line['variant_id'] ? ProductVariant::query()->where('product_id', $product->id)->find($line['variant_id']) : null;
+        if ($line['variant_id'] && (! $variant || ! $variant->is_active)) {
+            return back()->withErrors(['quantity' => 'This product option is no longer available.']);
+        }
+        $availableStock = $variant ? (int) $variant->stock : (int) $product->stock;
 
-        if ($quantity > $product->stock) {
-            return back()->withErrors(['quantity' => 'Only '.$product->stock.' of this piece are available.']);
+        if ($quantity > $availableStock) {
+            return back()->withErrors(['quantity' => 'Only '.$availableStock.' of this option are available.']);
         }
 
-        $cart->put($product->id, $quantity);
+        $cart->putByKey($cartKey, $quantity);
 
         return to_route('cart.index')->with('success', 'Bag updated.');
     }
 
-    public function destroy(Product $product, Cart $cart): RedirectResponse
+    public function destroy(Request $request, Product $product, Cart $cart): RedirectResponse
     {
-        $cart->forget($product->id);
+        $data = $request->validate(['cart_key' => ['nullable', 'string', 'max:120']]);
+        $cartKey = $data['cart_key'] ?? $cart->key($product->id);
+        $line = $cart->line($cartKey);
+        abort_unless($line && $line['product_id'] === $product->id, 404);
+        $cart->forgetByKey($cartKey);
 
         return to_route('cart.index')->with('success', 'Piece removed from your bag.');
     }

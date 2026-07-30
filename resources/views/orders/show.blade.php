@@ -45,12 +45,13 @@
                     <h2 class="text-2xl">Order items</h2>
                     @foreach($order->items as $item)
                         <div class="mt-5 flex gap-4 border-b border-cream/15 pb-4">
-                            @if($item->product && $item->product->image_path)
-                                <img class="h-20 w-16 object-cover" src="{{ asset('storage/'.$item->product->image_path) }}" alt="{{ $item->product_name ?? $item->name }}">
+                            @if($item->product?->primaryImagePath())
+                                <img class="h-20 w-16 object-cover" src="{{ asset('storage/'.$item->product->primaryImagePath()) }}" alt="{{ $item->product_name ?? $item->name }}">
                             @endif
                             <div class="flex-1">
-                                <p>{{ $item->product_name ?? $item->name }} &times; {{ $item->quantity }}</p>
-                                <p class="text-gold">RM {{ number_format($item->line_total ?? $item->total, 2) }}</p>
+                                 <p>{{ $item->product_name ?? $item->name }} &times; {{ $item->quantity }}</p>
+                                 @if($item->variant_description)<p class="mt-1 text-sm text-cream/65">{{ $item->variant_description }}@if($item->sku) · SKU: {{ $item->sku }}@endif</p>@endif
+                                 <p class="text-gold">RM {{ number_format($item->line_total ?? $item->total, 2) }}</p>
                                 @if($order->payment_status === 'paid' && $order->order_status === 'delivered' && $item->product)
                                     <a class="luxury-link mt-4 inline-block" href="{{ route('products.show', ['product' => $item->product, 'order_number' => $order->order_number, 'guest_access_token' => $token ?? null, 'customer_email' => $order->customer_email]) }}">
                                         {{ $item->review ? 'Edit review' : 'Review this product' }}

@@ -1,6 +1,17 @@
 import './bootstrap';
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-sidebar-group]').forEach((group) => {
+        const summary = group.querySelector(':scope > summary');
+
+        if (! summary) {
+            return;
+        }
+
+        summary.setAttribute('aria-expanded', group.open ? 'true' : 'false');
+        group.addEventListener('toggle', () => summary.setAttribute('aria-expanded', group.open ? 'true' : 'false'));
+    });
+
     const newsletter = document.querySelector('[data-newsletter-feature]');
 
     if (newsletter && ! window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -105,6 +116,40 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+    const overviewData = document.getElementById('accounting-chart-data');
+    const salesData = document.getElementById('accounting-sales-summary-chart-data');
+
+    if (! overviewData && ! salesData) return;
+
+    const parse = (node) => {
+        try { return JSON.parse(node?.textContent || '{}'); } catch { return {}; }
+    };
+    const line = (Chart, id, labels, data, label, colour = '#C8A96B') => {
+        const canvas = document.getElementById(id);
+        if (! canvas) return;
+        new Chart(canvas, { type: 'line', data: { labels, datasets: [{ label, data, borderColor: colour, backgroundColor: 'rgba(200, 169, 107, .12)', fill: true, tension: .24, pointRadius: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: 'rgba(248,244,239,.6)' }, grid: { color: 'rgba(248,244,239,.08)' } }, y: { beginAtZero: true, ticks: { color: 'rgba(248,244,239,.6)', callback: (value) => `RM ${Number(value).toLocaleString('en-MY')}` }, grid: { color: 'rgba(248,244,239,.08)' } } } } });
+    };
+    const bar = (Chart, id, labels, data, label, colour = '#5B1E2D') => {
+        const canvas = document.getElementById(id);
+        if (! canvas) return;
+        new Chart(canvas, { type: 'bar', data: { labels, datasets: [{ label, data, backgroundColor: colour, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: 'rgba(248,244,239,.6)' }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: 'rgba(248,244,239,.6)' }, grid: { color: 'rgba(248,244,239,.08)' } } } } });
+    };
+
+    void import('chart.js/auto').then(({ default: Chart }) => {
+        if (overviewData) {
+            const payload = parse(overviewData);
+            line(Chart, 'accounting-sales-chart', payload.labels || [], (payload.sales || []).map((value) => value / 100), 'Gross sales');
+            line(Chart, 'accounting-expenses-chart', payload.labels || [], (payload.expenses || []).map((value) => value / 100), 'Expenses', '#B89246');
+        }
+        if (salesData) {
+            const payload = parse(salesData);
+            line(Chart, 'accounting-gross-sales-chart', payload.labels || [], (payload.gross || []).map((value) => value / 100), 'Gross sales');
+            bar(Chart, 'accounting-refunds-chart', payload.labels || [], payload.orders || [], 'Paid orders', '#B89246');
+        }
+    }).catch(() => {});
+});
+
+document.addEventListener('DOMContentLoaded', () => {
     const chartData = document.getElementById('admin-reports-chart-data');
 
     if (! chartData) {
@@ -196,4 +241,150 @@ document.addEventListener('DOMContentLoaded', () => {
         lineChart('admin-reports-customer-chart', payload.customers?.labels || [], payload.customers?.values || [], 'New customers', '#B89246');
         lineChart('admin-reports-newsletter-chart', payload.newsletter?.labels || [], payload.newsletter?.values || [], 'New subscribers', '#B89246');
     }).catch(() => {});
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('[data-account-form]');
+    const data = document.getElementById('account-form-data');
+
+    if (! form || ! data) {
+        return;
+    }
+
+    let payload;
+
+    try {
+        payload = JSON.parse(data.textContent || '{}');
+    } catch {
+        return;
+    }
+
+    const type = form.querySelector('[data-account-type]');
+    const subtype = form.querySelector('[data-account-subtype]');
+    const normalBalance = form.querySelector('[data-normal-balance]');
+    const parent = form.querySelector('[data-account-parent]');
+    const warning = form.querySelector('[data-contra-warning]');
+
+    if (! type || ! subtype || ! normalBalance || ! parent) {
+        return;
+    }
+
+    const filterChoices = (select, selectedType) => {
+        [...select.options].forEach((option) => {
+            if (! option.dataset.type) {
+                return;
+            }
+
+            const available = option.dataset.type === selectedType;
+            option.hidden = ! available;
+            option.disabled = ! available;
+        });
+    };
+
+    const sync = (preserveBalance = false) => {
+        const selectedType = type.value;
+        filterChoices(subtype, selectedType);
+        filterChoices(parent, selectedType);
+
+        if (subtype.selectedOptions[0]?.disabled) {
+            subtype.value = '';
+        }
+        if (parent.selectedOptions[0]?.disabled) {
+            parent.value = '';
+        }
+
+        const isContra = (payload.contraSubtypes || []).includes(subtype.value);
+        const suggested = isContra ? 'debit' : (payload.defaults || {})[selectedType];
+
+        if (! preserveBalance || isContra) {
+            normalBalance.value = suggested || normalBalance.value;
+        }
+
+        warning?.classList.toggle('hidden', ! isContra);
+    };
+
+    type.addEventListener('change', () => sync(false));
+    subtype.addEventListener('change', () => sync(false));
+    sync(true);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('[data-journal-form]');
+
+    if (! form) {
+        return;
+    }
+
+    const list = form.querySelector('[data-journal-lines-list]');
+    const template = form.querySelector('[data-journal-line-template]');
+    const add = form.querySelector('[data-add-journal-line]');
+    const debitTotal = form.querySelector('[data-journal-debit-total]');
+    const creditTotal = form.querySelector('[data-journal-credit-total]');
+    const balanceMessage = form.querySelector('[data-journal-balance-message]');
+
+    if (! list || ! template || ! add || ! debitTotal || ! creditTotal || ! balanceMessage) {
+        return;
+    }
+
+    let nextIndex = list.querySelectorAll('[data-journal-line]').length;
+    const money = (value) => new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(value);
+    const number = (field) => Math.max(0, Number.parseFloat(field?.value || '0') || 0);
+
+    const updateTotals = () => {
+        const debits = [...list.querySelectorAll('[data-journal-debit]')].reduce((total, field) => total + number(field), 0);
+        const credits = [...list.querySelectorAll('[data-journal-credit]')].reduce((total, field) => total + number(field), 0);
+        const balanced = debits > 0 && Math.abs(debits - credits) < 0.005;
+
+        debitTotal.textContent = money(debits);
+        creditTotal.textContent = money(credits);
+        balanceMessage.textContent = balanced ? 'Balanced and ready to save.' : 'Debits and credits must balance.';
+        balanceMessage.classList.toggle('text-gold', balanced);
+        balanceMessage.classList.toggle('text-red-200', ! balanced);
+    };
+
+    add.addEventListener('click', () => {
+        const fragment = template.content.cloneNode(true);
+        fragment.querySelectorAll('[name]').forEach((field) => {
+            field.name = field.name.replaceAll('__INDEX__', String(nextIndex));
+        });
+        nextIndex += 1;
+        list.appendChild(fragment);
+        updateTotals();
+    });
+
+    list.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-remove-journal-line]');
+
+        if (! button) {
+            return;
+        }
+
+        const line = button.closest('[data-journal-line]');
+        if (list.querySelectorAll('[data-journal-line]').length <= 2) {
+            balanceMessage.textContent = 'A journal entry needs at least two lines.';
+            balanceMessage.classList.add('text-red-200');
+            return;
+        }
+
+        line?.remove();
+        updateTotals();
+    });
+
+    list.addEventListener('input', (event) => {
+        const field = event.target;
+        const line = field.closest('[data-journal-line]');
+
+        if (field.matches('[data-journal-debit]') && number(field) > 0) {
+            const credit = line?.querySelector('[data-journal-credit]');
+            if (credit) credit.value = '';
+        }
+        if (field.matches('[data-journal-credit]') && number(field) > 0) {
+            const debit = line?.querySelector('[data-journal-debit]');
+            if (debit) debit.value = '';
+        }
+
+        updateTotals();
+    });
+
+    updateTotals();
 });

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateOrderFulfilmentRequest;
+use App\Http\Requests\ResendOrderEmailRequest;
 use App\Models\DeliveryMethod;
 use App\Models\Order;
 use App\Models\Product;
@@ -12,6 +13,7 @@ use App\Services\AdminNotificationService;
 use App\Services\OrderDocumentService;
 use App\Services\OrderNotifier;
 use App\Services\ProductStockNotificationService;
+use App\Services\ReturnNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -114,6 +116,29 @@ class OrderController extends Controller
         }
 
         return back()->with('success', 'Order fulfilment updated.');
+    }
+
+    public function resendNotification(ResendOrderEmailRequest $request, Order $order, OrderNotifier $notifier, ReturnNotifier $returnNotifier): RedirectResponse
+    {
+        $type = $request->validated('notification_type');
+
+        if ($type === 'order_placed') {
+            $queued = $notifier->send($order, 'order_placed', [], true, $request->user()->id);
+        } elseif ($type === 'latest_status') {
+            abort_unless(in_array($order->order_status, ['processing', 'packed', 'shipped', 'delivered', 'cancelled'], true), 422);
+            $queued = $notifier->send($order, 'status_updated', [], true, $request->user()->id);
+        } elseif ($type === 'shipping') {
+            abort_unless(in_array($order->order_status, ['shipped', 'delivered'], true) && $order->courier_name && $order->tracking_number, 422);
+            $queued = $notifier->send($order, 'status_updated', ['tracking_url' => $order->tracking_url], true, $request->user()->id);
+        } else {
+            $return = $order->returnRequests()->with('refunds')->latest('id')->first();
+            abort_unless($return, 422);
+            $event = $return->refunds->contains('status', 'succeeded') ? 'refund_succeeded' : 'refund_processing';
+            $returnNotifier->customer($return, $event, true, $request->user()->id);
+            $queued = true;
+        }
+
+        return back()->with($queued ? 'success' : 'error', $queued ? 'Manual email resend queued.' : 'The email could not be queued. Check Email Logs for details.');
     }
 
     private function ensureTransition(Order $order, string $target): void

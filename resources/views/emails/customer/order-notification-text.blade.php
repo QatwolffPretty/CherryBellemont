@@ -68,7 +68,7 @@ Estimated delivery: {{ $context['estimated_delivery_at'] }}
 @endif
 
 @if($secureUrl)
-View your secure order: {{ $secureUrl }}
+Track your order: {{ $secureUrl }}
 @endif
 @if($event === 'order_placed' && $order->payment_method === 'duitnow' && $duitNowUrl)
 Complete DuitNow payment: {{ $duitNowUrl }}

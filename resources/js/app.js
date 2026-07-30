@@ -244,6 +244,48 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+    const data = document.getElementById('accounting-cash-flow-chart-data');
+
+    if (! data) {
+        return;
+    }
+
+    let payload;
+
+    try {
+        payload = JSON.parse(data.textContent || '{}');
+    } catch {
+        return;
+    }
+
+    void import('chart.js/auto').then(({ default: Chart }) => {
+        const common = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: 'rgba(248, 244, 239, .72)' } } },
+            scales: {
+                x: { ticks: { color: 'rgba(248, 244, 239, .6)' }, grid: { color: 'rgba(248, 244, 239, .08)' } },
+                y: { ticks: { color: 'rgba(248, 244, 239, .6)', callback: (value) => `RM ${Number(value).toLocaleString('en-MY')}` }, grid: { color: 'rgba(248, 244, 239, .08)' } },
+            },
+        };
+        const labels = payload.labels || [];
+        const inOut = document.getElementById('accounting-cash-flow-in-out-chart');
+        if (inOut) new Chart(inOut, { type: 'bar', data: { labels, datasets: [{ label: 'Cash In', data: (payload.inflow || []).map((value) => value / 100), backgroundColor: '#C8A96B' }, { label: 'Cash Out', data: (payload.outflow || []).map((value) => value / 100), backgroundColor: '#5B1E2D' }] }, options: common });
+        const net = document.getElementById('accounting-cash-flow-net-chart');
+        if (net) new Chart(net, { type: 'line', data: { labels, datasets: [{ label: 'Net Cash Movement', data: (payload.net || []).map((value) => value / 100), borderColor: '#C8A96B', backgroundColor: 'rgba(200,169,107,.14)', fill: true, tension: .24, pointRadius: 2 }] }, options: common });
+        const closing = document.getElementById('accounting-cash-flow-closing-chart');
+        if (closing) new Chart(closing, { type: 'line', data: { labels, datasets: [{ label: 'Closing Cash', data: (payload.closing || []).map((value) => value / 100), borderColor: '#B89246', backgroundColor: 'rgba(184,146,70,.14)', fill: true, tension: .24, pointRadius: 2 }] }, options: common });
+        const classification = document.getElementById('accounting-cash-flow-classification-chart');
+        if (classification) new Chart(classification, { type: 'bar', data: { labels: payload.classifications?.labels || [], datasets: [{ label: 'Net Cash Flow', data: (payload.classifications?.values || []).map((value) => value / 100), backgroundColor: ['#C8A96B', '#9D6D37', '#5B1E2D'] }] }, options: common });
+        const outflow = document.getElementById('accounting-cash-flow-outflow-chart');
+        if (outflow) {
+            const rows = payload.outflow_categories || {};
+            new Chart(outflow, { type: 'bar', data: { labels: Object.keys(rows), datasets: [{ label: 'Cash Outflow', data: Object.values(rows).map((value) => value / 100), backgroundColor: '#5B1E2D' }] }, options: common });
+        }
+    }).catch(() => {});
+});
+
+document.addEventListener('DOMContentLoaded', () => {
     const form = document.querySelector('[data-account-form]');
     const data = document.getElementById('account-form-data');
 

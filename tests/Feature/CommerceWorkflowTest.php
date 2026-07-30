@@ -103,6 +103,7 @@ class CommerceWorkflowTest extends TestCase
         $this->assertNotEmpty($order->guest_access_token);
         $this->assertSame(3, $product->fresh()->stock);
         $this->assertDatabaseHas('order_items', ['order_id' => $order->id, 'product_id' => $product->id, 'quantity' => 2]);
+        Notification::assertSentOnDemandTimes(OrderCustomerNotification::class, 1);
         Notification::assertSentOnDemand(OrderCustomerNotification::class, fn (OrderCustomerNotification $notification) => $notification->event === 'order_placed');
         Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'new_order');
         Notification::assertSentOnDemand(AdminOperationalNotification::class, fn (AdminOperationalNotification $notification) => $notification->event === 'low_stock');

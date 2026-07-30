@@ -17,6 +17,7 @@
                 @elseif($order->latestShipment)
                     <x-admin.button variant="outline" icon="bi-truck" :href="route('admin.shipments.show', $order->latestShipment)">View Shipment</x-admin.button>
                 @endif
+                <a class="admin-button admin-button-secondary" href="{{ route('admin.email-logs.index', ['order_number' => $order->order_number ?? $order->number]) }}"><i class="bi bi-envelope-paper"></i> Email Logs</a>
             </x-slot:actions>
         </x-admin.page-header>
 
@@ -90,6 +91,21 @@
             </div>
 
             <x-admin.card>
+                <div class="mb-6 border-b border-cream/15 pb-5">
+                    <p class="text-sm uppercase tracking-wider text-gold">Customer email</p>
+                    <div class="mt-3 flex flex-wrap gap-3">
+                        <form method="POST" action="{{ route('admin.orders.notifications.resend', $order) }}" onsubmit="return confirm('Queue another order confirmation email?');">@csrf<input type="hidden" name="notification_type" value="order_placed"><button class="admin-button admin-button-secondary" type="submit">Resend Order Confirmation</button></form>
+                        @if(in_array($order->order_status, ['processing', 'packed', 'shipped', 'delivered', 'cancelled'], true))
+                            <form method="POST" action="{{ route('admin.orders.notifications.resend', $order) }}" onsubmit="return confirm('Queue the latest status email?');">@csrf<input type="hidden" name="notification_type" value="latest_status"><button class="admin-button admin-button-secondary" type="submit">Resend Latest Status</button></form>
+                        @endif
+                        @if(in_array($order->order_status, ['shipped', 'delivered'], true) && $order->courier_name && $order->tracking_number)
+                            <form method="POST" action="{{ route('admin.orders.notifications.resend', $order) }}" onsubmit="return confirm('Queue the shipping email?');">@csrf<input type="hidden" name="notification_type" value="shipping"><button class="admin-button admin-button-secondary" type="submit">Resend Shipping Email</button></form>
+                        @endif
+                        @if($order->returnRequests->contains(fn ($returnRequest) => $returnRequest->refunds->isNotEmpty()))
+                            <form method="POST" action="{{ route('admin.orders.notifications.resend', $order) }}" onsubmit="return confirm('Queue the latest refund email?');">@csrf<input type="hidden" name="notification_type" value="refund"><button class="admin-button admin-button-secondary" type="submit">Resend Refund Email</button></form>
+                        @endif
+                    </div>
+                </div>
                 <form class="space-y-4" method="POST" action="{{ route('admin.orders.update', $order) }}">
                     @csrf
                     @method('PATCH')

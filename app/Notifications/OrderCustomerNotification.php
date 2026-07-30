@@ -19,8 +19,20 @@ class OrderCustomerNotification extends Notification implements ShouldQueue
 
     public array $backoff = [30, 120, 300];
 
-    public function __construct(public Order $order, public string $event, public array $context = [])
+    /**
+     * This must be an explicitly defaulted property instead of a promoted constructor
+     * property. Jobs created before the delivery-log identifier was introduced do not
+     * contain it in their serialized payload, and therefore need a safe null default
+     * when Laravel restores them.
+     */
+    public ?int $emailLogId = null;
+
+    /** The mail-channel listener records the delivery only after the channel succeeds. */
+    public ?string $mailSubject = null;
+
+    public function __construct(public Order $order, public string $event, public array $context = [], ?int $emailLogId = null)
     {
+        $this->emailLogId = $emailLogId;
         $this->afterCommit();
     }
 
@@ -32,6 +44,8 @@ class OrderCustomerNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $order = $this->orderForDelivery();
+        $subject = $this->subject($order);
+        $this->mailSubject = $subject;
         $data = [
             'order' => $order,
             'event' => $this->event,
@@ -43,13 +57,14 @@ class OrderCustomerNotification extends Notification implements ShouldQueue
         ];
 
         return (new MailMessage)
-            ->subject($this->subject($order))
+            ->subject($subject)
             ->view('emails.customer.order-notification', $data)
             ->text('emails.customer.order-notification-text', $data);
     }
 
     public function failed(Throwable $exception): void
     {
+        app(\App\Services\OrderEmailLogService::class)->markFailed($this->emailLogId, $exception);
         Log::warning('Customer order email delivery failed.', [
             'order_number' => $this->order->order_number,
             'notification_type' => $this->event,

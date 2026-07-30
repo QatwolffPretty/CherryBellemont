@@ -96,6 +96,7 @@
                 <nav class="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-3" aria-label="Footer navigation">
                     <a class="nav-link" href="{{ route('faq.index') }}">FAQ</a>
                     <a class="nav-link" href="{{ route('contact') }}">Contact</a>
+                    <a class="nav-link" href="{{ route('orders.lookup.form') }}">Track Order</a>
                     <a class="nav-link" href="{{ route('shipping.policy') }}">Shipping</a>
                     <a class="nav-link" href="{{ route('refund.policy') }}">Refund &amp; Returns</a>
                     <a class="nav-link" href="{{ route('privacy.policy') }}">Privacy</a>

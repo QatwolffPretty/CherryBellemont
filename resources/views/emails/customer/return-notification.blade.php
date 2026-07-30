@@ -3,7 +3,7 @@
     $heading = match ($event) {
         'requested' => 'Return request received', 'approved' => 'Your request has been approved', 'rejected' => 'Return request update',
         'instructions' => 'Your return instructions', 'item_received' => 'Your return has been received', 'inspection_failed' => 'Inspection update',
-        'refund_processing' => 'Your refund is being processed', 'refund_succeeded' => 'Your refund has been confirmed',
+        'refund_processing' => 'Your refund has been approved', 'refund_succeeded' => 'Your refund has been completed',
         'refund_failed' => 'Refund processing update', 'exchange_approved' => 'Your exchange has been approved', 'closed' => 'Your request has been closed',
         default => 'Return request update',
     };

@@ -165,12 +165,16 @@ class AccountingAccountController extends Controller
         return $request->validated() + [
             'is_active' => $request->boolean('is_active'),
             'allow_manual_posting' => $request->has('allow_manual_posting') ? $request->boolean('allow_manual_posting') : true,
+            'is_cash_account' => $request->boolean('is_cash_account'),
+            'is_cash_equivalent' => $request->boolean('is_cash_equivalent'),
+            'is_clearing_account' => $request->boolean('is_clearing_account'),
+            'cash_flow_enabled' => $request->boolean('cash_flow_enabled'),
         ];
     }
 
     /** @return array<string, mixed> */
     private function auditValues(AccountingAccount $account): array
     {
-        return $account->only(['code', 'name', 'type', 'subtype', 'normal_balance', 'parent_id', 'opening_balance', 'opening_balance_date', 'is_active', 'is_system', 'allow_manual_posting']);
+        return $account->only(['code', 'name', 'type', 'subtype', 'normal_balance', 'parent_id', 'opening_balance', 'opening_balance_date', 'is_active', 'is_system', 'allow_manual_posting', 'is_cash_account', 'is_cash_equivalent', 'is_clearing_account', 'cash_flow_enabled']);
     }
 }

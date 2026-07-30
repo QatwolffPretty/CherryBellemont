@@ -58,4 +58,5 @@ class Order extends Model
     public function shipments(): HasMany { return $this->hasMany(Shipment::class); }
     public function latestShipment(): HasOne { return $this->hasOne(Shipment::class)->latestOfMany(); }
     public function journalEntryLines(): HasMany { return $this->hasMany(JournalEntryLine::class); }
+    public function notificationLogs(): HasMany { return $this->hasMany(OrderNotificationLog::class); }
 }

@@ -383,7 +383,7 @@ class GeneralLedgerService
             return ['label' => 'Expense '.$line->expense->expense_number, 'url' => route('admin.accounting.expenses.edit', $line->expense)];
         }
         if ($line->ownerTransaction) {
-            return ['label' => 'Owner transaction '.$line->ownerTransaction->transaction_number, 'url' => route('admin.accounting.owner-transactions.edit', $line->ownerTransaction)];
+            return ['label' => 'Owner compensation '.$line->ownerTransaction->transaction_number, 'url' => route('admin.accounting.owner-transactions.show', $line->ownerTransaction)];
         }
 
         return ['label' => $entry->sourceLabel(), 'url' => null];

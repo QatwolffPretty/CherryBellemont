@@ -10,6 +10,7 @@ use App\Services\OrderNotifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -27,8 +28,10 @@ class CustomerTransactionalEmailTest extends TestCase
 
         $this->assertTrue(app(OrderNotifier::class)->send($order, 'order_placed'));
 
-        Notification::assertSentOnDemand(OrderCustomerNotification::class, function (OrderCustomerNotification $notification): bool {
-            return $notification->event === 'order_placed';
+        Notification::assertSentOnDemand(OrderCustomerNotification::class, function (OrderCustomerNotification $notification, array $channels, AnonymousNotifiable $notifiable): bool {
+            return $notification->event === 'order_placed'
+                && $channels === ['mail']
+                && $notifiable->routeNotificationFor('mail') === 'guest@example.test';
         });
 
         $notification = new OrderCustomerNotification($order, 'order_placed');
@@ -165,6 +168,62 @@ class CustomerTransactionalEmailTest extends TestCase
         }
 
         Queue::assertNothingPushed();
+    }
+
+    public function test_sync_queue_mode_sends_a_guest_confirmation_without_creating_a_database_job(): void
+    {
+        config()->set('queue.default', 'sync');
+        Mail::fake();
+        $order = $this->order();
+
+        $this->assertTrue(app(OrderNotifier::class)->send($order, 'order_placed'));
+
+        $this->assertDatabaseHas('order_notification_logs', [
+            'order_id' => $order->id,
+            'notification_type' => 'order_placed',
+            'status' => 'sent',
+        ]);
+        $this->assertDatabaseCount('jobs', 0);
+    }
+
+    public function test_legacy_queued_notification_without_a_delivery_log_identifier_renders_safely(): void
+    {
+        $order = $this->order();
+        $reflection = new \ReflectionClass(OrderCustomerNotification::class);
+        /** @var OrderCustomerNotification $notification */
+        $notification = $reflection->newInstanceWithoutConstructor();
+        $notification->order = $order;
+        $notification->event = 'order_placed';
+        $notification->context = [];
+
+        $mail = $notification->toMail(new AnonymousNotifiable());
+
+        $this->assertStringContainsString($order->order_number, $mail->subject);
+        $this->assertNull($notification->emailLogId);
+    }
+
+    public function test_notification_dispatch_failure_does_not_change_a_valid_order(): void
+    {
+        $order = $this->order();
+        $log = app(\App\Services\OrderEmailLogService::class)->prepare(
+            $order,
+            'order_placed',
+            $order->customer_email,
+        );
+        $notification = new OrderCustomerNotification($order, 'order_placed', [], $log?->id);
+
+        $notification->failed(new RuntimeException('Mail transport unavailable.'));
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+            'payment_status' => 'pending',
+        ]);
+        $this->assertDatabaseHas('order_notification_logs', [
+            'order_id' => $order->id,
+            'notification_type' => 'order_placed',
+            'status' => 'failed',
+        ]);
     }
 
     private function order(array $attributes = []): Order

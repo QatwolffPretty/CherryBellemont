@@ -18,6 +18,7 @@ class ReturnRequest extends Model
     public function images(): HasMany { return $this->hasMany(ReturnRequestImage::class); }
     public function refunds(): HasMany { return $this->hasMany(Refund::class); }
     public function events(): HasMany { return $this->hasMany(ReturnRequestEvent::class)->orderBy('created_at'); }
+    public function notificationLogs(): HasMany { return $this->hasMany(OrderNotificationLog::class); }
     public function scopePendingReview(Builder $query): Builder { return $query->whereIn('status', ['requested', 'under_review']); }
     public function scopeAwaitingReturn(Builder $query): Builder { return $query->where('status', 'awaiting_return'); }
     public function scopeAwaitingInspection(Builder $query): Builder { return $query->whereIn('status', ['item_received', 'inspecting']); }

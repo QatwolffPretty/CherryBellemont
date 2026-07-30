@@ -18,8 +18,16 @@ class ReturnCustomerNotification extends Notification implements ShouldQueue
     public int $tries = 3;
     public array $backoff = [30, 120, 300];
 
-    public function __construct(public ReturnRequest $returnRequest, public string $event)
+    /**
+     * Keep a default for jobs serialized before this optional delivery-log field was
+     * added. This prevents unrelated legacy return jobs from repeatedly failing a
+     * shared queue worker.
+     */
+    public ?int $emailLogId = null;
+
+    public function __construct(public ReturnRequest $returnRequest, public string $event, ?int $emailLogId = null)
     {
+        $this->emailLogId = $emailLogId;
         $this->afterCommit();
     }
 
@@ -38,14 +46,18 @@ class ReturnCustomerNotification extends Notification implements ShouldQueue
 
         $data = compact('return', 'order', 'secureUrl') + ['event' => $this->event];
 
+        $subject = $this->subject($return);
+        app(\App\Services\OrderEmailLogService::class)->markSent($this->emailLogId, $subject);
+
         return (new MailMessage)
-            ->subject($this->subject($return))
+            ->subject($subject)
             ->view('emails.customer.return-notification', $data)
             ->text('emails.customer.return-notification-text', $data);
     }
 
     public function failed(Throwable $exception): void
     {
+        app(\App\Services\OrderEmailLogService::class)->markFailed($this->emailLogId, $exception);
         Log::warning('Customer return email delivery failed.', [
             'return_number' => $this->returnRequest->return_number,
             'notification_type' => $this->event,
@@ -62,8 +74,8 @@ class ReturnCustomerNotification extends Notification implements ShouldQueue
             'instructions' => 'Return Instructions for Your Order',
             'item_received' => 'Your Return Has Been Received',
             'inspection_failed' => 'Return Inspection Update',
-            'refund_processing' => 'Your Refund Is Being Processed',
-            'refund_succeeded' => 'Your Refund Has Been Confirmed',
+            'refund_processing' => 'Your Refund Has Been Approved',
+            'refund_succeeded' => 'Your Refund Has Been Completed',
             'refund_failed' => 'Refund Processing Update',
             'exchange_approved' => 'Your Exchange Request Has Been Approved',
             'closed' => 'Your Return Request Has Been Closed',

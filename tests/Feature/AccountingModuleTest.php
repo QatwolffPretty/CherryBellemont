@@ -85,6 +85,7 @@ class AccountingModuleTest extends TestCase
         $order = $this->paidOrder();
         app(AccountingPostingService::class)->postPaidOrder($order);
         app(AccountingAccountService::class)->ensureDefaults();
+        AccountingAccount::where('code', '1010')->firstOrFail()->update(['opening_balance' => '30.00', 'opening_balance_date' => now()->startOfYear()]);
         $transaction = OwnerTransaction::create(['transaction_number' => 'OWN-TEST-001', 'transaction_date' => now(), 'transaction_type' => 'owner_drawing', 'amount' => '30.00', 'payment_account_id' => AccountingAccount::where('code', '1010')->value('id'), 'destination_account_id' => AccountingAccount::where('code', '3100')->value('id'), 'description' => 'Owner drawing', 'status' => 'draft']);
         app(AccountingPostingService::class)->postOwnerTransaction($transaction);
         $pnl = app(AccountingReportService::class)->profitAndLoss(['range' => 'today']);

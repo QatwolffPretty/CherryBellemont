@@ -120,7 +120,7 @@ class AccountingAccountService
             return 'Accounts referenced by expenses cannot be deleted.';
         }
 
-        if ($account->paymentOwnerTransactions()->exists() || $account->destinationOwnerTransactions()->exists()) {
+        if ($account->paymentOwnerTransactions()->exists() || $account->destinationOwnerTransactions()->exists() || $account->debitOwnerTransactions()->exists() || $account->creditOwnerTransactions()->exists()) {
             return 'Accounts referenced by owner compensation records cannot be deleted.';
         }
 

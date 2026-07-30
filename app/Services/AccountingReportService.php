@@ -139,13 +139,28 @@ class AccountingReportService
     /** @param array<string, mixed> $filters */
     public function cashFlow(array $filters): array
     {
-        $period = $this->period($filters);
-        $cashAccounts = AccountingAccount::query()->whereIn('code', ['1000', '1010', '1020', '1030'])->get();
-        $opening = $this->accountActivityBefore($period, $cashAccounts);
-        $lines = JournalEntryLine::query()->with(['journalEntry', 'account', 'ownerTransaction'])->whereIn('account_id', $cashAccounts->pluck('id'))->whereHas('journalEntry', fn (Builder $entry) => $entry->posted()->whereBetween('transaction_date', [$period['start'], $period['end']]))->get();
-        $inflow = $lines->sum(fn (JournalEntryLine $line) => $this->money($line->debit)); $outflow = $lines->sum(fn (JournalEntryLine $line) => $this->money($line->credit));
-        $openingTotal = array_sum($opening); $closing = $openingTotal + $inflow - $outflow;
-        return ['period' => $period, 'opening_balance' => $openingTotal, 'customer_receipts' => $this->cashMovementForSources($lines, 'order', 'debit'), 'other_operating_receipts' => $this->cashMovementForSources($lines, 'manual_income', 'debit'), 'owner_capital_contributions' => $this->cashMovementForOwner($lines, 'owner_capital', 'debit'), 'operating_expenses_paid' => $this->cashMovementForSources($lines, 'expense', 'credit'), 'refunds_paid' => $this->cashMovementForSources($lines, 'refund', 'credit'), 'owner_salary_paid' => $this->cashMovementForOwner($lines, 'owner_salary', 'credit'), 'owner_drawings' => $this->cashMovementForOwner($lines, 'owner_drawing', 'credit'), 'reserve_transfers' => $this->cashMovementForOwner($lines, 'reserve_allocation', 'credit'), 'cash_inflow' => $inflow, 'cash_outflow' => $outflow, 'net_cash_movement' => $inflow - $outflow, 'closing_balance' => $closing, 'accounts' => $cashAccounts];
+        // Retained as a compatibility adapter for the legacy Accounting overview
+        // and generic export route. The Cash Flow module itself is journal-ledger
+        // based and must not duplicate the old hard-coded account calculation.
+        $report = app(CashFlowService::class)->report(array_merge(['include_clearing' => true, 'include_internal_transfers' => true], $filters));
+
+        return [
+            'period' => $report['period'],
+            'opening_balance' => $report['opening_cash'],
+            'customer_receipts' => $this->cashCategory($report, 'customer_receipts'),
+            'other_operating_receipts' => $this->cashCategory($report, 'other_operating_receipts'),
+            'owner_capital_contributions' => $report['metrics']['capital'],
+            'operating_expenses_paid' => $report['metrics']['operating'] < 0 ? abs($report['metrics']['operating']) : 0,
+            'refunds_paid' => $report['metrics']['refunds'],
+            'owner_salary_paid' => $report['metrics']['salary'],
+            'owner_drawings' => $report['metrics']['drawings'],
+            'reserve_transfers' => 0,
+            'cash_inflow' => $report['cash_inflow'],
+            'cash_outflow' => $report['cash_outflow'],
+            'net_cash_movement' => $report['net_cash_movement'],
+            'closing_balance' => $report['closing_cash'],
+            'accounts' => $report['cash_accounts'],
+        ];
     }
 
     private function overviewCharts(array $period): array
@@ -197,9 +212,7 @@ class AccountingReportService
     }
 
     private function accountActivity(array $period, Collection $accounts): array { $lines = JournalEntryLine::query()->whereIn('account_id', $accounts->pluck('id'))->whereHas('journalEntry', fn (Builder $entry) => $entry->posted()->whereBetween('transaction_date', [$period['start'], $period['end']]))->get(); return $accounts->mapWithKeys(fn (AccountingAccount $account) => [$account->id => $lines->where('account_id', $account->id)->sum(fn (JournalEntryLine $line) => $account->isDebitNormal() ? $this->money($line->debit) - $this->money($line->credit) : $this->money($line->credit) - $this->money($line->debit))])->all(); }
-    private function accountActivityBefore(array $period, Collection $accounts): array { $lines = JournalEntryLine::query()->whereIn('account_id', $accounts->pluck('id'))->whereHas('journalEntry', fn (Builder $entry) => $entry->posted()->where('transaction_date', '<', $period['start']))->get(); return $accounts->mapWithKeys(fn (AccountingAccount $account) => [$account->id => $this->money($account->opening_balance) + $lines->where('account_id', $account->id)->sum(fn (JournalEntryLine $line) => $this->money($line->debit) - $this->money($line->credit))])->all(); }
-    private function cashMovementForSources(Collection $lines, string $source, string $side): int { return $lines->filter(fn (JournalEntryLine $line) => $line->journalEntry?->source_type === $source)->sum(fn (JournalEntryLine $line) => $this->money($line->{$side})); }
-    private function cashMovementForOwner(Collection $lines, string $type, string $side): int { return $lines->filter(fn (JournalEntryLine $line) => $line->ownerTransaction?->transaction_type === $type)->sum(fn (JournalEntryLine $line) => $this->money($line->{$side})); }
+    private function cashCategory(array $report, string $category): int { return $report['filtered_movements']->where('category', $category)->sum(fn (array $movement) => $movement['net_movement']); }
     private function orderCost(Collection $orderIds): int { return $orderIds->isEmpty() ? 0 : $this->money(DB::table('order_items')->whereIn('order_id', $orderIds)->selectRaw('COALESCE(SUM(COALESCE(unit_cost, 0) * quantity), 0) as cost')->value('cost')); }
     private function within(Builder $query, array $period, string $column = 'created_at'): Builder { return $query->whereBetween($column, [$period['start'], $period['end']]); }
     private function dates(array $period): Collection { $dates = collect(); for ($date = $period['start']->startOfDay(); $date->lessThanOrEqualTo($period['end']->startOfDay()); $date = $date->addDay()) $dates->push($date); return $dates; }

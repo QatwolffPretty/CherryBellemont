@@ -49,10 +49,10 @@ class AccountingCatalog
     public static function accounts(): array
     {
         return [
-            ['code' => '1000', 'name' => 'Cash on Hand', 'type' => 'asset', 'subtype' => 'Cash', 'normal_balance' => 'debit'],
-            ['code' => '1010', 'name' => 'Business Bank Account', 'type' => 'asset', 'subtype' => 'Bank', 'normal_balance' => 'debit'],
-            ['code' => '1020', 'name' => 'Stripe Clearing Account', 'type' => 'asset', 'subtype' => 'Clearing', 'normal_balance' => 'debit'],
-            ['code' => '1030', 'name' => 'DuitNow Clearing Account', 'type' => 'asset', 'subtype' => 'Clearing', 'normal_balance' => 'debit'],
+            ['code' => '1000', 'name' => 'Cash on Hand', 'type' => 'asset', 'subtype' => 'Cash', 'normal_balance' => 'debit', 'is_cash_account' => true, 'cash_flow_enabled' => true],
+            ['code' => '1010', 'name' => 'Business Bank Account', 'type' => 'asset', 'subtype' => 'Bank', 'normal_balance' => 'debit', 'is_cash_account' => true, 'cash_flow_enabled' => true],
+            ['code' => '1020', 'name' => 'Stripe Clearing Account', 'type' => 'asset', 'subtype' => 'Clearing', 'normal_balance' => 'debit', 'is_cash_equivalent' => true, 'is_clearing_account' => true, 'cash_flow_enabled' => true],
+            ['code' => '1030', 'name' => 'DuitNow Clearing Account', 'type' => 'asset', 'subtype' => 'Clearing', 'normal_balance' => 'debit', 'is_cash_equivalent' => true, 'is_clearing_account' => true, 'cash_flow_enabled' => true],
             ['code' => '1100', 'name' => 'Accounts Receivable', 'type' => 'asset', 'subtype' => 'Receivable', 'normal_balance' => 'debit'],
             ['code' => '1200', 'name' => 'Inventory Asset', 'type' => 'asset', 'subtype' => 'Inventory', 'normal_balance' => 'debit'],
             ['code' => '1300', 'name' => 'Prepaid Expenses', 'type' => 'asset', 'subtype' => 'Prepaid', 'normal_balance' => 'debit'],

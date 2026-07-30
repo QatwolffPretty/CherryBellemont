@@ -18,6 +18,12 @@
             ['Delivered', $order->delivered_at],
         ];
         $shipment = $order->latestShipment;
+        $customerEmail = $order->customer_email ?: $order->email;
+        $maskedCustomerEmail = $customerEmail;
+        if (str_contains((string) $customerEmail, '@')) {
+            [$localPart, $domain] = explode('@', $customerEmail, 2);
+            $maskedCustomerEmail = str($localPart)->substr(0, 1).str_repeat('•', max(2, strlen($localPart) - 1)).'@'.$domain;
+        }
     @endphp
 
     <section class="mx-auto max-w-6xl px-6 py-16">
@@ -29,7 +35,12 @@
             <div class="space-y-6">
                 <section class="border border-cream/15 p-6">
                     <h2 class="text-2xl">Customer information</h2>
-                    <p class="mt-4">{{ $order->customer_name }}<br>{{ $order->customer_email }}<br>{{ $order->customer_phone }}</p>
+                    <p class="mt-4">{{ $order->customer_name ?: $order->full_name ?: 'Customer' }}<br>{{ $maskedCustomerEmail ?: 'Email not recorded' }}<br>{{ $order->customer_phone ?: $order->phone ?: 'Phone not recorded' }}</p>
+                    @if($order->pickup_location)
+                        <p class="mt-4 text-cream/75">Pickup: {{ $order->pickup_location }}</p>
+                    @elseif($order->address_line_1)
+                        <p class="mt-4 text-cream/75">Delivery: {{ $order->address_line_1 }} {{ $order->address_line_2 }}<br>{{ $order->city }}, {{ $order->state }} {{ $order->postcode }}<br>{{ $order->country }}</p>
+                    @endif
                 </section>
 
                 @if($shipment)
@@ -38,6 +49,11 @@
                         <div class="mt-5 grid gap-3 md:grid-cols-2"><p>Tracking: <span class="text-gold">{{ $shipment->tracking_number ?: 'To be confirmed' }}</span></p><p>Estimated delivery: <span class="text-gold">{{ $shipment->estimated_delivery_at?->format('d M Y') ?: 'To be confirmed' }}</span></p></div>
                         @if($shipment->tracking_url)<a class="luxury-link mt-5 inline-block" href="{{ $shipment->tracking_url }}" target="_blank" rel="noopener noreferrer">Track with Courier</a>@endif
                         <ol class="mt-6 space-y-3 border-l border-gold/50 pl-5">@foreach($shipment->events as $event)<li><span class="text-gold">{{ $event->title }}</span><span class="ml-2 text-sm text-cream/60">{{ $event->event_time?->format('d M Y H:i') }}</span>@if($event->location)<span class="ml-2 text-sm text-cream/60">· {{ $event->location }}</span>@endif</li>@endforeach</ol>
+                    </section>
+                @else
+                    <section class="border border-cream/15 p-6">
+                        <h2 class="text-2xl">Shipment tracking</h2>
+                        <p class="mt-3 text-cream/65">Tracking information will appear here once your order has been shipped.</p>
                     </section>
                 @endif
 
@@ -49,7 +65,8 @@
                                 <img class="h-20 w-16 object-cover" src="{{ asset('storage/'.$item->product->primaryImagePath()) }}" alt="{{ $item->product_name ?? $item->name }}">
                             @endif
                             <div class="flex-1">
-                                 <p>{{ $item->product_name ?? $item->name }} &times; {{ $item->quantity }}</p>
+                                  <p>{{ $item->product_name ?? $item->name }} &times; {{ $item->quantity }}</p>
+                                  @if($item->size_name || $item->colour_name)<p class="mt-1 text-sm text-cream/65">@if($item->colour_name)Colour: {{ $item->colour_name }}@endif @if($item->size_name)<span class="ml-2">Size: {{ $item->size_name }}</span>@endif</p>@endif
                                  @if($item->variant_description)<p class="mt-1 text-sm text-cream/65">{{ $item->variant_description }}@if($item->sku) · SKU: {{ $item->sku }}@endif</p>@endif
                                  <p class="text-gold">RM {{ number_format($item->line_total ?? $item->total, 2) }}</p>
                                 @if($order->payment_status === 'paid' && $order->order_status === 'delivered' && $item->product)
@@ -75,6 +92,11 @@
                         @endforeach
                         @if($order->order_status === 'cancelled')
                             <li class="text-gold">Cancelled{{ $order->cancellation_reason ? ': '.$order->cancellation_reason : '' }}</li>
+                        @endif
+                        @if($shipment)
+                            @foreach($shipment->events as $event)
+                                <li><span class="text-gold">{{ $event->title }}</span><span class="ml-2 text-sm text-cream/60">{{ $event->event_time?->format('d M Y H:i') }}</span></li>
+                            @endforeach
                         @endif
                     </ol>
                 </section>
@@ -112,6 +134,7 @@
                 <p class="mt-3"><span class="text-cream/60">Payment Method</span><br><span class="capitalize text-gold">{{ $order->payment_method }}</span></p>
                 <p class="mt-3"><span class="text-cream/60">Receipt Status</span><br><span class="capitalize text-gold">{{ $order->payment_method === 'stripe' ? 'not required' : ($latestReceipt ? $latestReceipt->status : 'awaiting receipt') }}</span></p>
                 <p class="mt-3"><span class="text-cream/60">Order Status</span><br><span class="capitalize text-gold">{{ $order->order_status }}</span></p>
+                <p class="mt-3"><span class="text-cream/60">Delivery Status</span><br><span class="capitalize text-gold">{{ $shipment?->shipment_status ? str($shipment->shipment_status)->replace('_', ' ') : 'Awaiting dispatch' }}</span></p>
                 <p class="mt-5">Shipping method: {{ $order->shipping_method_name ?? '—' }}</p>
                 <p>Shipping fee: RM {{ number_format($order->shipping_fee, 2) }}</p>
                 <p>Courier: {{ $order->courier_name ?: 'Awaiting dispatch' }}</p>

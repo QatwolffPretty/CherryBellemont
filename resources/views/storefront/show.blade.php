@@ -64,7 +64,7 @@
                         @endif
                         <p id="variant-status" class="text-sm text-cream/65" aria-live="polite">Choose {{ $requiresColour && $requiresSize ? 'a colour and size' : ($requiresColour ? 'a colour' : 'a size') }} to continue.</p>
                     @endif
-                    <div class="flex items-center gap-4"><input id="product-quantity" class="field w-20" type="number" name="quantity" min="1" max="{{ $hasVariants ? 1 : $availableStock }}" value="1" @disabled($hasVariants)><button id="add-to-bag" class="luxury-link disabled:cursor-not-allowed disabled:opacity-45" type="submit" @disabled($hasVariants) @if($hasVariants) aria-disabled="true" @endif>{{ $hasVariants ? $variantSelectionLabel : 'Add to Bag' }}</button></div>
+                    <div class="flex items-center gap-4"><input id="product-quantity" class="field w-20" type="number" name="quantity" min="1" max="{{ $hasVariants ? 1 : $availableStock }}" value="1" @disabled($hasVariants)><button id="add-to-bag" class="luxury-link disabled:cursor-not-allowed disabled:opacity-45" type="submit" @disabled($hasVariants) @if($hasVariants) aria-disabled="true" @endif>{{ $hasVariants ? $variantSelectionLabel : 'Add to bag' }}</button></div>
                 </form>
                 @error('variant')<p class="mt-3 text-gold">{{ $message }}</p>@enderror
                 @error('quantity')<p class="mt-3 text-gold">{{ $message }}</p>@enderror
@@ -142,7 +142,7 @@
                 add.disabled = !available;
                 add.setAttribute('aria-disabled', String(!available));
                 quantity.max = available ? exact.stock : 1;
-                if (available) { add.textContent = 'Add to Bag'; status.textContent = `SKU ${exact.sku || '—'} · ${exact.stock} available`; stockStatus.textContent = `${exact.stock} currently available for this selection.`; if (price) price.textContent = `RM ${Number(exact.price).toFixed(2)}`; }
+                if (available) { add.textContent = 'Add to bag'; status.textContent = `SKU ${exact.sku || '—'} · ${exact.stock} available`; stockStatus.textContent = `${exact.stock} currently available for this selection.`; if (price) price.textContent = `RM ${Number(exact.price).toFixed(2)}`; }
                 else if (ready) { add.textContent = 'Out of Stock'; status.textContent = 'This combination is out of stock.'; stockStatus.textContent = 'Out of stock for this selection.'; }
                 else { add.textContent = selectLabel; status.textContent = `Choose the required ${requiresColour && requiresSize ? 'colour and size' : (requiresColour ? 'colour' : 'size')} to continue.`; }
             };

@@ -144,22 +144,7 @@ class AccountingPostingService
 
     public function postOwnerTransaction(OwnerTransaction $transaction, ?int $userId = null): JournalEntry
     {
-        $this->accounts->ensureDefaults();
-        return DB::transaction(function () use ($transaction, $userId): JournalEntry {
-            $transaction = OwnerTransaction::query()->lockForUpdate()->findOrFail($transaction->id);
-            if ($transaction->journal_entry_id) return $transaction->journalEntry()->firstOrFail();
-            $amount = $this->money($transaction->amount);
-            $debitDestination = in_array($transaction->transaction_type, ['owner_salary', 'owner_drawing'], true);
-            $entry = $this->createPostedEntry([
-                'source_type' => 'owner_transaction', 'source_id' => $transaction->id, 'source_event' => 'posted', 'transaction_date' => $transaction->transaction_date->toDateString(),
-                'reference' => $transaction->reference_number ?: $transaction->transaction_number, 'description' => $transaction->description, 'currency' => 'MYR', 'posted_by' => $userId,
-            ], $debitDestination
-                ? [$this->line($transaction->destinationAccount()->firstOrFail(), debit: $amount, description: $transaction->description, ownerTransactionId: $transaction->id), $this->line($transaction->paymentAccount()->firstOrFail(), credit: $amount, description: 'Owner payment', ownerTransactionId: $transaction->id)]
-                : [$this->line($transaction->paymentAccount()->firstOrFail(), debit: $amount, description: $transaction->description, ownerTransactionId: $transaction->id), $this->line($transaction->destinationAccount()->firstOrFail(), credit: $amount, description: 'Owner allocation', ownerTransactionId: $transaction->id)]);
-            $transaction->update(['status' => 'posted', 'journal_entry_id' => $entry->id]);
-            $this->audit->record('owner_transaction.posted', $transaction, $userId, [], ['journal_entry_id' => $entry->id]);
-            return $entry;
-        }, 3);
+        return app(OwnerCompensationPostingService::class)->post($transaction, $userId);
     }
 
     /** @param array<int, array<string, mixed>> $lines */

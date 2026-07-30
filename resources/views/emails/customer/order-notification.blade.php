@@ -97,7 +97,7 @@
             Complete DuitNow Payment
         @endcomponent
         @component('emails.components.secondary-button', ['url' => $secureUrl])
-            View your secure order
+            Track Your Order
         @endcomponent
     @elseif($event === 'receipt_rejected' && $secureUrl)
         @component('emails.components.primary-button', ['url' => $secureUrl])
@@ -105,7 +105,7 @@
         @endcomponent
     @elseif($secureUrl)
         @component('emails.components.primary-button', ['url' => $secureUrl])
-            View your secure order
+            Track Your Order
         @endcomponent
         @if(in_array($event, ['status_updated', 'shipment_updated'], true) && (($event === 'shipment_updated') || $order->order_status === 'shipped') && ! empty($context['tracking_url']))
             @component('emails.components.secondary-button', ['url' => $context['tracking_url']])

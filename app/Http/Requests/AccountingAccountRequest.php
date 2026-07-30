@@ -44,6 +44,10 @@ class AccountingAccountRequest extends FormRequest
             'opening_balance_date' => ['nullable', 'date'],
             'is_active' => ['nullable', 'boolean'],
             'allow_manual_posting' => ['nullable', 'boolean'],
+            'is_cash_account' => ['nullable', 'boolean'],
+            'is_cash_equivalent' => ['nullable', 'boolean'],
+            'is_clearing_account' => ['nullable', 'boolean'],
+            'cash_flow_enabled' => ['nullable', 'boolean'],
         ];
     }
 
@@ -65,6 +69,15 @@ class AccountingAccountRequest extends FormRequest
 
             if (! in_array((string) $this->input('opening_balance'), ['', '0', '0.0', '0.00'], true) && ! $this->filled('opening_balance_date')) {
                 $validator->errors()->add('opening_balance_date', 'An opening balance date is required when an opening balance is entered.');
+            }
+
+            $cashEnabled = $this->boolean('cash_flow_enabled');
+            $cashLike = $this->boolean('is_cash_account') || $this->boolean('is_cash_equivalent');
+            if ($cashEnabled && ($type !== 'asset' || ! $cashLike || $this->input('normal_balance') !== 'debit')) {
+                $validator->errors()->add('cash_flow_enabled', 'Cash Flow accounts must be debit-normal asset accounts marked as cash or cash equivalent.');
+            }
+            if ($this->boolean('is_clearing_account') && ! $this->boolean('is_cash_equivalent')) {
+                $validator->errors()->add('is_clearing_account', 'A clearing account must also be marked as a cash equivalent.');
             }
 
             try {

@@ -3,6 +3,8 @@
         <x-admin.page-header title="Store Settings" eyebrow="Configuration" subtitle="Manage ordinary public business settings. Credentials, API secrets, passwords, and application keys remain in the server environment.">
             <x-slot:actions>
                 <a class="admin-button admin-button-secondary" href="{{ route('admin.settings.audit') }}"><i class="bi bi-clock-history"></i> Audit History</a>
+                <a class="admin-button admin-button-secondary" href="{{ route('admin.settings.email') }}"><i class="bi bi-envelope-check"></i> Email Test</a>
+                <a class="admin-button admin-button-secondary" href="{{ route('admin.email-logs.index') }}"><i class="bi bi-envelope-paper"></i> Email Logs</a>
                 <form method="POST" action="{{ route('admin.settings.cache.clear') }}">@csrf <button class="admin-button admin-button-secondary" type="submit"><i class="bi bi-arrow-clockwise"></i> Clear Cache</button></form>
             </x-slot:actions>
         </x-admin.page-header>

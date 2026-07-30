@@ -9,13 +9,11 @@ use App\Http\Requests\AccountingSettingsRequest;
 use App\Http\Requests\ExpenseRequest;
 use App\Http\Requests\JournalEntryRequest;
 use App\Http\Requests\ManualIncomeRequest;
-use App\Http\Requests\OwnerTransactionRequest;
 use App\Models\AccountingAccount;
 use App\Models\AccountingAuditLog;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\JournalEntry;
-use App\Models\OwnerTransaction;
 use App\Services\AccountingAccountService;
 use App\Services\AccountingAuditService;
 use App\Services\AccountingExportService;
@@ -57,13 +55,6 @@ class AccountingController extends Controller
     public function postExpense(Request $request, Expense $expense, AccountingPostingService $posting, AccountingSettingsService $settings): RedirectResponse { if (filter_var($settings->get('require_expense_approval', '1'), FILTER_VALIDATE_BOOL)) abort_unless($expense->status === 'approved', 422, 'This expense requires approval before posting.'); abort_unless(in_array($expense->status, ['draft', 'approved'], true), 422); $posting->postExpense($expense, $request->user()->id); return to_route('admin.accounting.expenses.index')->with('success', 'Expense posted to the General Ledger.'); }
     public function reverseExpense(Request $request, Expense $expense, AccountingPostingService $posting): RedirectResponse { abort_unless($expense->journalEntry, 422); $posting->reverse($expense->journalEntry, $request->user()->id, 'Expense reversal'); $expense->update(['status' => 'reversed']); return back()->with('success', 'Expense was reversed through a balancing journal.'); }
 
-    public function ownerTransactions(Request $request): View { $transactions = OwnerTransaction::query()->with(['paymentAccount', 'destinationAccount', 'journalEntry'])->latest('transaction_date')->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))->paginate(25)->withQueryString(); return view('admin.accounting.owner-transactions.index', compact('transactions')); }
-    public function createOwnerTransaction(AccountingAccountService $accounts): View { $accounts->ensureDefaults(); return view('admin.accounting.owner-transactions.form', ['transaction' => null, 'accounts' => AccountingAccount::query()->active()->orderBy('code')->get()]); }
-    public function storeOwnerTransaction(OwnerTransactionRequest $request, AccountingAuditService $audit): RedirectResponse { $transaction = OwnerTransaction::query()->create($request->validated() + ['transaction_number' => $this->number('OWN', OwnerTransaction::class, 'transaction_number'), 'status' => 'draft', 'created_by' => $request->user()->id, 'updated_by' => $request->user()->id]); $audit->record('owner_transaction.created', $transaction, $request->user()->id, [], ['status' => 'draft'], $request->ip()); return to_route('admin.accounting.owner-transactions.edit', $transaction)->with('success', 'Owner transaction draft created.'); }
-    public function editOwnerTransaction(OwnerTransaction $ownerTransaction): View { abort_if($ownerTransaction->status === 'posted', 409, 'Posted owner transactions cannot be edited.'); return view('admin.accounting.owner-transactions.form', ['transaction' => $ownerTransaction, 'accounts' => AccountingAccount::query()->active()->orderBy('code')->get()]); }
-    public function updateOwnerTransaction(OwnerTransactionRequest $request, OwnerTransaction $ownerTransaction): RedirectResponse { abort_if($ownerTransaction->status === 'posted', 409); $ownerTransaction->update($request->validated() + ['updated_by' => $request->user()->id]); return back()->with('success', 'Owner transaction draft updated.'); }
-    public function postOwnerTransaction(Request $request, OwnerTransaction $ownerTransaction, AccountingPostingService $posting): RedirectResponse { $posting->postOwnerTransaction($ownerTransaction, $request->user()->id); return to_route('admin.accounting.owner-transactions.index')->with('success', 'Owner transaction posted to the General Ledger.'); }
-
     public function accounts(Request $request, AccountingAccountService $service): View { $service->ensureDefaults(); $accounts = AccountingAccount::query()->withCount('lines')->orderBy('code')->paginate(50); return view('admin.accounting.accounts.index', compact('accounts')); }
     public function createAccount(): View { return view('admin.accounting.accounts.form', ['account' => null, 'parents' => AccountingAccount::query()->active()->orderBy('code')->get()]); }
     public function storeAccount(AccountingAccountRequest $request, AccountingAuditService $audit): RedirectResponse { $account = AccountingAccount::query()->create($request->validated() + ['is_active' => $request->boolean('is_active', true), 'is_system' => false, 'created_by' => $request->user()->id, 'updated_by' => $request->user()->id]); $audit->record('account.created', $account, $request->user()->id, [], $account->only(['code', 'name', 'type']), $request->ip()); return to_route('admin.accounting.accounts.index')->with('success', 'Account created.'); }
@@ -80,8 +71,6 @@ class AccountingController extends Controller
 
     public function ledger(AccountingDateRangeRequest $request, AccountingReportService $reports): View { return view('admin.accounting.ledger', ['ledger' => $reports->ledger($request->filters()), 'filters' => $request->filters(), 'rangeOptions' => $reports->rangeOptions()]); }
     public function profitAndLoss(AccountingDateRangeRequest $request, AccountingReportService $reports): View { return view('admin.accounting.profit-loss', ['report' => $reports->profitAndLoss($request->filters()), 'filters' => $request->filters(), 'rangeOptions' => $reports->rangeOptions()]); }
-    public function cashFlow(AccountingDateRangeRequest $request, AccountingReportService $reports): View { return view('admin.accounting.cash-flow', ['report' => $reports->cashFlow($request->filters()), 'filters' => $request->filters(), 'rangeOptions' => $reports->rangeOptions()]); }
-
     public function financialSettings(AccountingAccountService $accounts, AccountingSettingsService $settings): View { $accounts->ensureDefaults(); return view('admin.accounting.settings', ['settings' => $settings->all(), 'accounts' => AccountingAccount::query()->active()->orderBy('code')->get(), 'auditLogs' => AccountingAuditLog::query()->with('user')->latest()->limit(25)->get()]); }
     public function updateFinancialSettings(AccountingSettingsRequest $request, AccountingSettingsService $settings, AccountingAuditService $audit): RedirectResponse { $values = $request->validated(); $this->assertSettingAccountTypes($values); foreach ($values as $key => $value) $settings->set($key, is_bool($value) ? (int) $value : $value, $request->user()->id); $settings->forgetCache(); $audit->record('financial_settings.updated', (object) ['id' => null], $request->user()->id, [], ['keys' => array_keys($values)], $request->ip()); return back()->with('success', 'Financial settings saved.'); }
 

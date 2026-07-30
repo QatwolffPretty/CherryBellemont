@@ -62,6 +62,8 @@ class StripeCheckoutTest extends TestCase
         $this->assertSame('pending', $order->payment_status);
         $this->assertSame('cs_test_initial', $order->stripe_checkout_session_id);
         $this->assertSame(3, $product->fresh()->stock);
+        Notification::assertSentOnDemandTimes(OrderCustomerNotification::class, 1);
+        Notification::assertSentOnDemand(OrderCustomerNotification::class, fn (OrderCustomerNotification $notification) => $notification->event === 'order_placed');
     }
 
     public function test_stripe_payload_uses_order_snapshots_and_includes_shipping_in_sen(): void

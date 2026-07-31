@@ -27,9 +27,9 @@ class AccountingPostingService
         private readonly JournalPostingService $journals,
     ) {}
 
-    public function postPaidOrder(Order $order): ?JournalEntry
+    public function postPaidOrder(Order $order, bool $force = false): ?JournalEntry
     {
-        if ($order->payment_status !== 'paid' || ! $this->settings->automaticPostingEnabled()) {
+        if ($order->payment_status !== 'paid' || (! $force && ! $this->settings->automaticPostingEnabled())) {
             return null;
         }
 

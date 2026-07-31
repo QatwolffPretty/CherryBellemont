@@ -241,6 +241,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->as('admin.')->group(funct
         Route::post('expenses/{expense}/approve', [AdminAccountingController::class, 'approveExpense'])->name('expenses.approve');
         Route::post('expenses/{expense}/post', [AdminAccountingController::class, 'postExpense'])->name('expenses.post');
         Route::post('expenses/{expense}/reverse', [AdminAccountingController::class, 'reverseExpense'])->name('expenses.reverse');
+        Route::post('expenses/{expense}/void', [AdminAccountingController::class, 'voidExpense'])->name('expenses.void');
+        Route::get('expenses/{expense}', [AdminAccountingController::class, 'showExpense'])->name('expenses.show');
         Route::get('owner-compensation', [OwnerCompensationController::class, 'index'])->name('owner-transactions.index');
         Route::get('owner-compensation/create', [OwnerCompensationController::class, 'create'])->name('owner-transactions.create');
         Route::post('owner-compensation', [OwnerCompensationController::class, 'store'])->name('owner-transactions.store');

@@ -65,17 +65,17 @@
                 <a class="nav-link {{ $isAbout ? 'text-gold' : '' }}" href="{{ route('about') }}" @if($isAbout) aria-current="page" @endif>About</a>
 
                 <div class="flex items-center gap-[18px]">
-                    <a class="nav-icon relative" href="{{ route('cart.index') }}" aria-label="Shopping Bag" data-bs-toggle="tooltip" data-bs-title="Shopping Bag">
+                    <a class="store-nav-icon relative" href="{{ route('cart.index') }}" aria-label="Shopping Bag" data-bs-toggle="tooltip" data-bs-title="Shopping Bag">
                         <i class="bi bi-handbag-fill" aria-hidden="true"></i>
                         <span class="cart-count" aria-live="polite">{{ $cart->count() }}</span>
                     </a>
                     @auth
-                        <a class="nav-icon" href="{{ auth()->user()->is_admin ? route('admin.dashboard') : route('dashboard') }}" aria-label="Account" data-bs-toggle="tooltip" data-bs-title="Account">
-                            <i class="bi bi-person-circle" aria-hidden="true"></i>
+                        <a class="store-nav-icon" href="{{ auth()->user()->is_admin ? route('admin.dashboard') : route('dashboard') }}" aria-label="Account" data-bs-toggle="tooltip" data-bs-title="Account">
+                            <i class="bi bi-person" aria-hidden="true"></i>
                         </a>
                     @else
-                        <a class="nav-icon" href="{{ route('login') }}" aria-label="Account" data-bs-toggle="tooltip" data-bs-title="Account">
-                            <i class="bi bi-person-circle" aria-hidden="true"></i>
+                        <a class="store-nav-icon" href="{{ route('login') }}" aria-label="Account" data-bs-toggle="tooltip" data-bs-title="Account">
+                            <i class="bi bi-person" aria-hidden="true"></i>
                         </a>
                     @endauth
                 </div>

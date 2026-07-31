@@ -75,7 +75,7 @@ class AccountingModuleTest extends TestCase
         $this->paidOrder(['payment_status' => 'pending', 'total' => '999.00']);
         $summary = app(AccountingReportService::class)->salesSummary(['range' => 'today']);
         $this->assertSame(1, $summary['paid_order_count']);
-        $this->assertSame(13000, $summary['gross_sales']);
+        $this->assertSame(14000, $summary['gross_sales']);
         $this->assertSame(2000, $summary['refunds']);
         $this->assertSame(11000, $summary['net_sales']);
     }

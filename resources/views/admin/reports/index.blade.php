@@ -23,7 +23,7 @@
         </x-admin.card>
 
         <div class="mt-8 grid gap-6 xl:grid-cols-2">
-            <x-admin.card title="Sales">
+            <x-admin.card id="sales-reports" title="Sales">
                 <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                     <x-admin.stats-card label="Gross paid revenue" :value="'RM '.number_format($report['sales']['gross_paid_revenue'], 2)" />
                     <x-admin.stats-card label="Discounts issued" :value="'RM '.number_format($report['sales']['discounts'], 2)" />
@@ -69,7 +69,7 @@
                 <div class="mt-6 flex justify-end"><x-admin.button variant="outline" :href="$exportUrl('payments')" icon="bi-download">Export payments CSV</x-admin.button></div>
             </x-admin.card>
 
-            <x-admin.card title="Customers">
+            <x-admin.card id="customer-reports" title="Customers">
                 <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                     <x-admin.stats-card label="Unique customers" :value="$report['customers']['unique_customers']" />
                     <x-admin.stats-card label="New customers" :value="$report['customers']['new_customers']" />
@@ -85,7 +85,7 @@
         </div>
 
         <div class="mt-8 grid gap-6 xl:grid-cols-2">
-            <x-admin.card title="Products">
+            <x-admin.card id="product-reports" title="Products">
                 <div class="admin-chart-canvas mt-6"><canvas id="admin-reports-product-chart" aria-label="Top product units sold chart" role="img"></canvas></div>
                 <p class="mt-6 text-sm text-cream/60">Top-selling products by units</p>
                 <x-admin.table class="mt-3"><x-slot:head><tr><th>Top product</th><th>Units sold</th><th>Paid revenue</th><th>Stock</th></tr></x-slot:head>
@@ -122,7 +122,7 @@
                 <div class="mt-6 flex justify-end"><x-admin.button variant="outline" :href="$exportUrl('products')" icon="bi-download">Export products CSV</x-admin.button></div>
             </x-admin.card>
 
-            <x-admin.card title="Inventory">
+            <x-admin.card id="inventory-reports" title="Inventory">
                 <div class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                     <x-admin.stats-card label="Active products" :value="$report['inventory']['active_products']" />
                     <x-admin.stats-card label="Units in stock" :value="$report['inventory']['units_in_stock']" />

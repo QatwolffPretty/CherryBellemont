@@ -52,6 +52,9 @@ class AccountingReportService
         $cash = $this->cashFlow($filters);
         $expenses = $this->within(Expense::query(), $period, 'expense_date');
         $owners = $this->within(OwnerTransaction::query(), $period, 'transaction_date');
+        $pendingPayments = $this->within(Order::query()
+            ->where('payment_status', '!=', 'paid')
+            ->where('order_status', '!=', 'cancelled'), $period)->get(['id', 'total']);
         return [
             'period' => $period,
             'cards' => [
@@ -59,6 +62,9 @@ class AccountingReportService
                 'other_income' => $pnl['other_income'], 'cost_of_goods_sold' => $pnl['cost_of_goods_sold'], 'operating_expenses' => $pnl['operating_expenses'],
                 'owner_compensation' => $this->money($owners->where('transaction_type', 'owner_salary')->sum('amount')), 'gross_profit' => $pnl['gross_profit'], 'net_profit' => $pnl['net_profit'],
                 'business_cash' => $cash['closing_balance'], 'unposted_transactions' => JournalEntry::query()->where('status', 'draft')->count() + (clone $expenses)->where('status', 'draft')->count() + (clone $owners)->where('status', 'draft')->count(),
+                'shipping_revenue' => $sales['shipping_income'], 'money_received' => $sales['money_received'], 'pending_payments' => $this->money($pendingPayments->sum('total')),
+                'net_cash_flow' => $cash['net_cash_movement'], 'stripe_income' => $sales['stripe_sales'], 'duitnow_income' => $sales['duitnow_sales'],
+                'paid_orders' => $sales['paid_order_count'], 'unpaid_orders' => $pendingPayments->count(),
             ],
             'charts' => $this->overviewCharts($period),
             'recent' => [
@@ -82,15 +88,17 @@ class AccountingReportService
         $shipping = $this->money($orderRows->sum(fn (Order $order) => $order->original_shipping_fee ?? $order->shipping_fee));
         $gift = $this->money($orderRows->sum('gift_wrapping_fee'));
         $discount = $orderRows->sum(fn (Order $order) => $this->money($order->discount_amount) + $this->money($order->free_shipping_discount));
-        $gross = $productSales + $shipping + $gift - $discount;
+        // Gross sales is shown before discounts and refunds. Net sales follows
+        // the same audited formula on every accounting report.
+        $gross = $productSales + $shipping + $gift;
         $refundTotal = $this->money($refunds->sum('amount'));
-        $net = $gross - $refundTotal;
+        $net = $gross - $discount - $refundTotal;
         $cogs = $this->orderCost($orderRows->pluck('id'));
 
         return [
             'period' => $period, 'paid_order_count' => $orderRows->count(), 'gross_product_sales' => $productSales, 'shipping_income' => $shipping, 'gift_wrapping_income' => $gift,
             'discounts' => $discount, 'gross_sales' => $gross, 'refunds' => $refundTotal, 'net_sales' => $net,
-            'average_order_value' => $orderRows->isEmpty() ? 0 : $this->money($orderRows->sum('total')) / $orderRows->count(), 'estimated_cost_of_goods_sold' => $cogs,
+            'money_received' => $this->money($orderRows->sum('total')), 'average_order_value' => $orderRows->isEmpty() ? 0 : $this->money($orderRows->sum('total')) / $orderRows->count(), 'estimated_cost_of_goods_sold' => $cogs,
             'estimated_gross_profit' => $net - $cogs,
             'stripe_sales' => $this->money($orderRows->filter(fn (Order $order) => ($order->payment_provider ?: $order->payment_method) === 'stripe')->sum('total')),
             'duitnow_sales' => $this->money($orderRows->filter(fn (Order $order) => ($order->payment_provider ?: $order->payment_method) === 'duitnow')->sum('total')),
@@ -167,14 +175,14 @@ class AccountingReportService
     {
         $sales = $this->salesCharts($period, $this->within(Order::query()->where('payment_status', 'paid'), $period)->get(), $this->within(Refund::query()->where('status', 'succeeded'), $period, 'confirmed_at')->get());
         $expenses = $this->within(Expense::query()->where('status', 'posted'), $period, 'accounting_date')->selectRaw('DATE(accounting_date) as date, SUM(amount + tax_amount) as amount')->groupBy('date')->pluck('amount', 'date');
-        return ['labels' => $sales['labels'], 'sales' => $sales['gross'], 'refunds' => $sales['refunds'], 'net_profit' => collect($sales['gross'])->map(fn ($amount, $key) => $amount - ($sales['refunds'][$key] ?? 0) - $this->money($expenses[$sales['keys'][$key]] ?? 0))->all(), 'expenses' => collect($sales['keys'])->map(fn ($date) => $this->money($expenses[$date] ?? 0))->all()];
+        return ['labels' => $sales['labels'], 'sales' => $sales['gross'], 'refunds' => $sales['refunds'], 'net_profit' => collect($sales['net'])->map(fn ($amount, $key) => $amount - $this->money($expenses[$sales['keys'][$key]] ?? 0))->all(), 'expenses' => collect($sales['keys'])->map(fn ($date) => $this->money($expenses[$date] ?? 0))->all()];
     }
 
     private function salesCharts(array $period, Collection $orders, Collection $refunds): array
     {
         $dates = $this->dates($period); $orderDates = $orders->groupBy(fn (Order $o) => $o->created_at->toDateString()); $refundDates = $refunds->groupBy(fn (Refund $r) => ($r->confirmed_at ?? $r->created_at)->toDateString());
-        $rows = $dates->map(function (CarbonImmutable $date) use ($orderDates, $refundDates): array { $orders = $orderDates->get($date->toDateString(), collect()); return ['date' => $date->toDateString(), 'label' => $date->format('d M'), 'gross' => $orders->sum(fn (Order $o) => $this->money($o->subtotal) + $this->money($o->original_shipping_fee ?? $o->shipping_fee) + $this->money($o->gift_wrapping_fee) - $this->money($o->discount_amount) - $this->money($o->free_shipping_discount)), 'orders' => $orders->count(), 'refunds' => $this->money($refundDates->get($date->toDateString(), collect())->sum('amount'))]; });
-        return ['keys' => $rows->pluck('date')->all(), 'labels' => $rows->pluck('label')->all(), 'gross' => $rows->pluck('gross')->all(), 'net' => $rows->map(fn ($r) => $r['gross'] - $r['refunds'])->all(), 'orders' => $rows->pluck('orders')->all(), 'refunds' => $rows->pluck('refunds')->all()];
+        $rows = $dates->map(function (CarbonImmutable $date) use ($orderDates, $refundDates): array { $orders = $orderDates->get($date->toDateString(), collect()); return ['date' => $date->toDateString(), 'label' => $date->format('d M'), 'gross' => $orders->sum(fn (Order $o) => $this->money($o->subtotal) + $this->money($o->original_shipping_fee ?? $o->shipping_fee) + $this->money($o->gift_wrapping_fee)), 'discounts' => $orders->sum(fn (Order $o) => $this->money($o->discount_amount) + $this->money($o->free_shipping_discount)), 'orders' => $orders->count(), 'refunds' => $this->money($refundDates->get($date->toDateString(), collect())->sum('amount'))]; });
+        return ['keys' => $rows->pluck('date')->all(), 'labels' => $rows->pluck('label')->all(), 'gross' => $rows->pluck('gross')->all(), 'discounts' => $rows->pluck('discounts')->all(), 'net' => $rows->map(fn ($r) => $r['gross'] - $r['discounts'] - $r['refunds'])->all(), 'orders' => $rows->pluck('orders')->all(), 'refunds' => $rows->pluck('refunds')->all()];
     }
 
     private function salesBreakdowns(array $period, Collection $orders, Collection $refunds, int $net): array
